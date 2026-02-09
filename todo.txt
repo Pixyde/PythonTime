@@ -1,0 +1,5 @@
+I need you to create an app that will use the 42 api
+This app will gather data from every promotion 4 student of the havre campuse
+You will gather the start date and the end date of every python module
+You will then gather the log time data of the student
+You will then use the logtime data and the dates to aproximate the time spent on each python module
