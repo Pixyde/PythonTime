@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>42 Python Time Tracker - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .controls {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .control-section {
+            margin-bottom: 20px;
+        }
+
+        .control-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .control-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            align-items: end;
+        }
+
+        .control-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        input[type="range"] {
+            padding: 0;
+        }
+
+        .range-value {
+            display: inline-block;
+            margin-left: 10px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+            cursor: pointer;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .chart-card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .chart-title {
+            font-size: 1.3em;
+            color: #333;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+        }
+
+        .table-container {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        tr:hover {
+            background: #f5f5f5;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin: 2px;
+        }
+
+        .badge-success {
+            background: #4caf50;
+            color: white;
+        }
+
+        .badge-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .badge-info {
+            background: #2196f3;
+            color: white;
+        }
+
+        .badge-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: white;
+            font-size: 1.5em;
+        }
+
+        .error {
+            background: #f44336;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .filter-summary {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #1976d2;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .control-group {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐍 42 Python Time Tracker Dashboard</h1>
+            <p class="subtitle">Interactive analysis of Python module completion times</p>
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-label">Total Users</div>
+                <div class="stat-value" id="totalUsers">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Filtered Users</div>
+                <div class="stat-value" id="filteredUsers">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Hours</div>
+                <div class="stat-value" id="totalHours">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Hours/User</div>
+                <div class="stat-value" id="avgHours">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Python Projects</div>
+                <div class="stat-value" id="totalProjects">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Completion Rate</div>
+                <div class="stat-value" id="completionRate">0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">C++ Projects</div>
+                <div class="stat-value" id="cppProjects">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Web Projects</div>
+                <div class="stat-value" id="webProjects">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Speed Champion</div>
+                <div class="stat-value" id="speedChampion" style="font-size: 1.5em;">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Time/Project</div>
+                <div class="stat-value" id="avgTimePerProject">0h</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="control-section">
+                <div class="section-title">🔍 Search & Basic Filters</div>
+                <div class="control-group">
+                    <div class="control-item">
+                        <label for="searchUser">Search User</label>
+                        <input type="text" id="searchUser" placeholder="Enter username...">
+                    </div>
+                    <div class="control-item">
+                        <label for="filterModule">Filter by Module</label>
+                        <select id="filterModule">
+                            <option value="">All Modules</option>
+                        </select>
+                    </div>
+                    <div class="control-item">
+                        <label for="filterStatus">Filter by Status</label>
+                        <select id="filterStatus">
+                            <option value="">All Statuses</option>
+                            <option value="finished">Finished</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="searching_a_group">Searching Group</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <div class="section-title">📊 Module Range & Completion Filters</div>
+                <div class="control-group">
+                    <div class="control-item">
+                        <label for="moduleRangeStart">Module Range Start</label>
+                        <select id="moduleRangeStart">
+                            <option value="">Any</option>
+                        </select>
+                    </div>
+                    <div class="control-item">
+                        <label for="moduleRangeEnd">Module Range End (Show up to)</label>
+                        <select id="moduleRangeEnd">
+                            <option value="">Any</option>
+                        </select>
+                    </div>
+                    <div class="control-item">
+                        <label>
+                            <input type="checkbox" id="completedOnly" class="checkbox-control">
+                            <span>Show Completed Modules Only</span>
+                        </label>
+                    </div>
+                    <div class="control-item">
+                        <label>
+                            <input type="checkbox" id="finishedOnly" class="checkbox-control">
+                            <span>Show Finished Projects Only</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <div class="section-title">⏱️ Time & Activity Filters</div>
+                <div class="control-group">
+                    <div class="control-item">
+                        <label for="minHours">Minimum Hours: <span id="minHoursValue" class="range-value">0</span></label>
+                        <input type="range" id="minHours" min="0" max="200" value="0" step="5">
+                    </div>
+                    <div class="control-item">
+                        <label for="maxHours">Maximum Hours: <span id="maxHoursValue" class="range-value">1000</span></label>
+                        <input type="range" id="maxHours" min="0" max="1000" value="1000" step="10">
+                    </div>
+                    <div class="control-item">
+                        <label for="minProjects">Minimum Projects: <span id="minProjectsValue" class="range-value">0</span></label>
+                        <input type="range" id="minProjects" min="0" max="20" value="0" step="1">
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <div class="button-group">
+                    <button onclick="applyFilters()">🔄 Apply Filters</button>
+                    <button onclick="resetFilters()">🔄 Reset All Filters</button>
+                    <button onclick="exportFilteredData()">💾 Export Filtered Data</button>
+                </div>
+                <div id="filterSummary" class="filter-summary" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3 class="chart-title">📊 Top 15 Users by Total Hours</h3>
+                <div class="chart-container">
+                    <canvas id="topUsersChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3 class="chart-title">⚡ Fastest Finishers (Speed Runners)</h3>
+                <div class="chart-container">
+                    <canvas id="speedRunnersChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3 class="chart-title">📚 Module Average Times</h3>
+                <div class="chart-container">
+                    <canvas id="moduleTimesChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3 class="chart-title">🌐 Projects by Language</h3>
+                <div class="chart-container">
+                    <canvas id="languageChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card full-width">
+                <h3 class="chart-title">📈 Time Distribution</h3>
+                <div class="chart-container">
+                    <canvas id="distributionChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3 class="chart-title">✅ Project Status Distribution</h3>
+                <div class="chart-container">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3 class="chart-title">🎯 Module Completion Count</h3>
+                <div class="chart-container">
+                    <canvas id="moduleCountChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3 class="chart-title">📉 Module Progression</h3>
+                <div class="chart-container">
+                    <canvas id="progressionChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3 class="chart-title">🏆 Completion Rate by Module</h3>
+                <div class="chart-container">
+                    <canvas id="completionRateChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3 class="chart-title">💪 Project Difficulty (Time vs Completion)</h3>
+                <div class="chart-container">
+                    <canvas id="difficultyChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <h3 class="chart-title">👥 User Details</h3>
+            <table id="userTable">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Username</th>
+                        <th>Total Hours</th>
+                        <th>Projects</th>
+                        <th>Avg Hours/Project</th>
+                        <th>Modules</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="userTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Data will be injected here
+        const DATA = {{DATA_PLACEHOLDER}};
+
+        let allData = DATA;
+        let filteredData = DATA;
+        let charts = {};
+        let allModules = [];
+
+        // Initialize dashboard
+        function init() {
+            if (!DATA || DATA.length === 0) {
+                document.querySelector('.container').innerHTML = '<div class="error">No data available. Please run the Python script first to generate data.</div>';
+                return;
+            }
+
+            extractModules();
+            populateModuleFilters();
+            updateStats();
+            createCharts();
+            updateTable();
+            setupEventListeners();
+            updateFilterSummary();
+        }
+
+        function extractModules() {
+            const moduleSet = new Set();
+            allData.forEach(user => {
+                user.python_projects.forEach(project => {
+                    moduleSet.add(project.project_name);
+                });
+            });
+            allModules = Array.from(moduleSet).sort();
+        }
+
+        function populateModuleFilters() {
+            // Populate single module filter
+            const moduleSelect = document.getElementById('filterModule');
+            allModules.forEach(module => {
+                const option = document.createElement('option');
+                option.value = module;
+                option.textContent = module;
+                moduleSelect.appendChild(option);
+            });
+
+            // Populate range filters
+            const rangeStart = document.getElementById('moduleRangeStart');
+            const rangeEnd = document.getElementById('moduleRangeEnd');
+            
+            allModules.forEach(module => {
+                const optStart = document.createElement('option');
+                optStart.value = module;
+                optStart.textContent = module;
+                rangeStart.appendChild(optStart);
+
+                const optEnd = document.createElement('option');
+                optEnd.value = module;
+                optEnd.textContent = module;
+                rangeEnd.appendChild(optEnd);
+            });
+        }
+
+        function updateStats() {
+            const totalUsers = allData.length;
+            const filteredUsers = filteredData.length;
+            const totalHours = filteredData.reduce((sum, user) => sum + user.total_python_hours, 0);
+            const avgHours = filteredUsers > 0 ? totalHours / filteredUsers : 0;
+            
+            const projectSet = new Set();
+            const completedProjects = new Set();
+            let totalProjects = 0;
+            let finishedProjects = 0;
+            
+            // Enhanced language tracking
+            const languageStats = {
+                python: 0,
+                cpp: 0,
+                web: 0,
+                other: 0
+            };
+            
+            // Speed tracking
+            let fastestUser = null;
+            let fastestAvgTime = Infinity;
+            
+            filteredData.forEach(user => {
+                const userProjects = user.python_projects.length;
+                const userTime = user.total_python_hours;
+                const avgTimePerProject = userProjects > 0 ? userTime / userProjects : Infinity;
+                
+                if (userProjects > 0 && avgTimePerProject < fastestAvgTime) {
+                    fastestAvgTime = avgTimePerProject;
+                    fastestUser = user.login;
+                }
+                
+                user.python_projects.forEach(project => {
+                    const name = project.project_name.toLowerCase();
+                    projectSet.add(project.project_name);
+                    totalProjects++;
+                    
+                    // Categorize by language
+                    if (name.includes('python') || name.includes('django')) {
+                        languageStats.python++;
+                    } else if (name.includes('c++') || name.includes('cpp') || name.includes('libft') || 
+                               name.includes('ft_printf') || name.includes('push_swap') || name.includes('philosophers')) {
+                        languageStats.cpp++;
+                    } else if (name.includes('webserv') || name.includes('inception') || name.includes('ft_transcendence')) {
+                        languageStats.web++;
+                    } else {
+                        languageStats.other++;
+                    }
+                    
+                    if (project.status === 'finished') {
+                        completedProjects.add(project.project_name);
+                        finishedProjects++;
+                    }
+                });
+            });
+
+            const completionRate = totalProjects > 0 ? (finishedProjects / totalProjects * 100) : 0;
+            const avgTimePerProject = totalProjects > 0 ? totalHours / totalProjects : 0;
+
+            document.getElementById('totalUsers').textContent = totalUsers;
+            document.getElementById('filteredUsers').textContent = filteredUsers;
+            document.getElementById('totalHours').textContent = totalHours.toFixed(1);
+            document.getElementById('avgHours').textContent = avgHours.toFixed(1);
+            document.getElementById('totalProjects').textContent = languageStats.python;
+            document.getElementById('completionRate').textContent = completionRate.toFixed(1) + '%';
+            document.getElementById('cppProjects').textContent = languageStats.cpp;
+            document.getElementById('webProjects').textContent = languageStats.web;
+            document.getElementById('speedChampion').textContent = fastestUser || '-';
+            document.getElementById('avgTimePerProject').textContent = avgTimePerProject.toFixed(1) + 'h';
+        }
+
+        function createCharts() {
+            createTopUsersChart();
+            createSpeedRunnersChart();
+            createModuleTimesChart();
+            createLanguageChart();
+            createDistributionChart();
+            createStatusChart();
+            createModuleCountChart();
+            createProgressionChart();
+            createCompletionRateChart();
+            createDifficultyChart();
+        }
+
+        function createTopUsersChart() {
+            const ctx = document.getElementById('topUsersChart');
+            const sorted = [...filteredData].sort((a, b) => b.total_python_hours - a.total_python_hours).slice(0, 15);
+            
+            if (charts.topUsers) charts.topUsers.destroy();
+            
+            charts.topUsers = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(u => u.login),
+                    datasets: [{
+                        label: 'Total Hours',
+                        data: sorted.map(u => u.total_python_hours),
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Hours' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createSpeedRunnersChart() {
+            const ctx = document.getElementById('speedRunnersChart');
+            
+            // Calculate average time per project for each user
+            const userSpeeds = filteredData
+                .filter(u => u.python_projects.length > 0)
+                .map(u => ({
+                    login: u.login,
+                    avgTime: u.total_python_hours / u.python_projects.length,
+                    projects: u.python_projects.length
+                }))
+                .filter(u => u.projects >= 2) // At least 2 projects to be meaningful
+                .sort((a, b) => a.avgTime - b.avgTime)
+                .slice(0, 15);
+            
+            if (charts.speedRunners) charts.speedRunners.destroy();
+            
+            charts.speedRunners = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: userSpeeds.map(u => u.login),
+                    datasets: [{
+                        label: 'Avg Hours/Project',
+                        data: userSpeeds.map(u => u.avgTime),
+                        backgroundColor: 'rgba(255, 193, 7, 0.8)',
+                        borderColor: 'rgba(255, 193, 7, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const idx = context.dataIndex;
+                                    return `Projects: ${userSpeeds[idx].projects}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Avg Hours per Project' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createLanguageChart() {
+            const ctx = document.getElementById('languageChart');
+            
+            const languageStats = {
+                'Python': 0,
+                'C++/C': 0,
+                'Web/System': 0,
+                'Other': 0
+            };
+            
+            filteredData.forEach(user => {
+                user.python_projects.forEach(project => {
+                    const name = project.project_name.toLowerCase();
+                    if (name.includes('python') || name.includes('django')) {
+                        languageStats['Python']++;
+                    } else if (name.includes('c++') || name.includes('cpp') || name.includes('libft') || 
+                               name.includes('ft_printf') || name.includes('push_swap') || name.includes('philosophers') ||
+                               name.includes('minishell') || name.includes('cub3d')) {
+                        languageStats['C++/C']++;
+                    } else if (name.includes('webserv') || name.includes('inception') || name.includes('ft_transcendence') ||
+                               name.includes('born2beroot') || name.includes('netpractice')) {
+                        languageStats['Web/System']++;
+                    } else {
+                        languageStats['Other']++;
+                    }
+                });
+            });
+            
+            if (charts.language) charts.language.destroy();
+            
+            charts.language = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(languageStats),
+                    datasets: [{
+                        data: Object.values(languageStats),
+                        backgroundColor: [
+                            'rgba(102, 126, 234, 0.8)',
+                            'rgba(244, 67, 54, 0.8)',
+                            'rgba(76, 175, 80, 0.8)',
+                            'rgba(255, 152, 0, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        function createDifficultyChart() {
+            const ctx = document.getElementById('difficultyChart');
+            
+            // Calculate difficulty: avg time vs completion rate
+            const projectStats = {};
+            
+            filteredData.forEach(user => {
+                user.python_projects.forEach(project => {
+                    const name = project.project_name;
+                    if (!projectStats[name]) {
+                        projectStats[name] = {
+                            attempts: 0,
+                            finished: 0,
+                            totalTime: 0
+                        };
+                    }
+                    projectStats[name].attempts++;
+                    projectStats[name].totalTime += project.time_spent_hours;
+                    if (project.status === 'finished') {
+                        projectStats[name].finished++;
+                    }
+                });
+            });
+            
+            const projectData = Object.entries(projectStats)
+                .filter(([_, stats]) => stats.attempts >= 3)
+                .map(([name, stats]) => ({
+                    name: name,
+                    avgTime: stats.totalTime / stats.attempts,
+                    completionRate: (stats.finished / stats.attempts) * 100
+                }))
+                .slice(0, 20);
+            
+            if (charts.difficulty) charts.difficulty.destroy();
+            
+            charts.difficulty = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Projects',
+                        data: projectData.map(p => ({
+                            x: p.avgTime,
+                            y: p.completionRate,
+                            label: p.name
+                        })),
+                        backgroundColor: 'rgba(156, 39, 176, 0.6)',
+                        borderColor: 'rgba(156, 39, 176, 1)',
+                        borderWidth: 2,
+                        pointRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${projectData[context.dataIndex].name}: ${context.parsed.x.toFixed(1)}h, ${context.parsed.y.toFixed(1)}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Average Time (hours)' },
+                            beginAtZero: true
+                        },
+                        y: {
+                            title: { display: true, text: 'Completion Rate (%)' },
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        function createModuleTimesChart() {
+            const ctx = document.getElementById('moduleTimesChart');
+            const moduleStats = {};
+            
+            filteredData.forEach(user => {
+                user.python_projects.forEach(project => {
+                    if (!moduleStats[project.project_name]) {
+                        moduleStats[project.project_name] = { total: 0, count: 0 };
+                    }
+                    moduleStats[project.project_name].total += project.time_spent_hours;
+                    moduleStats[project.project_name].count += 1;
+                });
+            });
+
+            const modules = Object.keys(moduleStats).sort((a, b) => 
+                moduleStats[b].total / moduleStats[b].count - moduleStats[a].total / moduleStats[a].count
+            ).slice(0, 10);
+
+            if (charts.moduleTimes) charts.moduleTimes.destroy();
+            
+            charts.moduleTimes = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: modules,
+                    datasets: [{
+                        label: 'Average Hours',
+                        data: modules.map(m => moduleStats[m].total / moduleStats[m].count),
+                        backgroundColor: 'rgba(118, 75, 162, 0.8)',
+                        borderColor: 'rgba(118, 75, 162, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Average Hours' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createDistributionChart() {
+            const ctx = document.getElementById('distributionChart');
+            const hours = filteredData.map(u => u.total_python_hours);
+            
+            if (hours.length === 0) {
+                if (charts.distribution) charts.distribution.destroy();
+                return;
+            }
+            
+            const buckets = 20;
+            const max = Math.max(...hours);
+            const bucketSize = max / buckets;
+            const distribution = new Array(buckets).fill(0);
+            
+            hours.forEach(h => {
+                const bucket = Math.min(Math.floor(h / bucketSize), buckets - 1);
+                distribution[bucket]++;
+            });
+
+            if (charts.distribution) charts.distribution.destroy();
+            
+            charts.distribution = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: distribution.map((_, i) => `${(i * bucketSize).toFixed(0)}-${((i + 1) * bucketSize).toFixed(0)}`),
+                    datasets: [{
+                        label: 'Number of Users',
+                        data: distribution,
+                        backgroundColor: 'rgba(76, 175, 80, 0.8)',
+                        borderColor: 'rgba(76, 175, 80, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Number of Users' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Total Hours Range' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createStatusChart() {
+            const ctx = document.getElementById('statusChart');
+            const statuses = {};
+            
+            filteredData.forEach(user => {
+                user.python_projects.forEach(project => {
+                    const status = project.status || 'unknown';
+                    statuses[status] = (statuses[status] || 0) + 1;
+                });
+            });
+
+            if (charts.status) charts.status.destroy();
+            
+            charts.status = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statuses),
+                    datasets: [{
+                        data: Object.values(statuses),
+                        backgroundColor: [
+                            'rgba(76, 175, 80, 0.8)',
+                            'rgba(255, 152, 0, 0.8)',
+                            'rgba(33, 150, 243, 0.8)',
+                            'rgba(244, 67, 54, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        function createModuleCountChart() {
+            const ctx = document.getElementById('moduleCountChart');
+            const moduleCounts = {};
+            
+            filteredData.forEach(user => {
+                user.python_projects.forEach(project => {
+                    moduleCounts[project.project_name] = (moduleCounts[project.project_name] || 0) + 1;
+                });
+            });
+
+            const sorted = Object.entries(moduleCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+
+            if (charts.moduleCount) charts.moduleCount.destroy();
+            
+            charts.moduleCount = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(m => m[0]),
+                    datasets: [{
+                        label: 'Number of Users',
+                        data: sorted.map(m => m[1]),
+                        backgroundColor: 'rgba(255, 152, 0, 0.8)',
+                        borderColor: 'rgba(255, 152, 0, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Number of Users' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createProgressionChart() {
+            const ctx = document.getElementById('progressionChart');
+            
+            // Count users who reached each module
+            const moduleProgress = {};
+            allModules.forEach(module => {
+                moduleProgress[module] = 0;
+            });
+            
+            filteredData.forEach(user => {
+                const userModules = new Set(user.python_projects.map(p => p.project_name));
+                allModules.forEach(module => {
+                    if (userModules.has(module)) {
+                        moduleProgress[module]++;
+                    }
+                });
+            });
+
+            const sortedModules = allModules.slice(0, 15); // Show first 15 modules
+            
+            if (charts.progression) charts.progression.destroy();
+            
+            charts.progression = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedModules,
+                    datasets: [{
+                        label: 'Users Reached',
+                        data: sortedModules.map(m => moduleProgress[m]),
+                        backgroundColor: 'rgba(33, 150, 243, 0.2)',
+                        borderColor: 'rgba(33, 150, 243, 1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Number of Users' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Module' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createCompletionRateChart() {
+            const ctx = document.getElementById('completionRateChart');
+            
+            // Calculate completion rate per module
+            const moduleStats = {};
+            allModules.forEach(module => {
+                moduleStats[module] = { total: 0, finished: 0 };
+            });
+            
+            filteredData.forEach(user => {
+                user.python_projects.forEach(project => {
+                    if (moduleStats[project.project_name]) {
+                        moduleStats[project.project_name].total++;
+                        if (project.status === 'finished') {
+                            moduleStats[project.project_name].finished++;
+                        }
+                    }
+                });
+            });
+
+            const sortedModules = allModules
+                .filter(m => moduleStats[m].total > 0)
+                .slice(0, 15);
+            
+            if (charts.completionRate) charts.completionRate.destroy();
+            
+            charts.completionRate = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedModules,
+                    datasets: [{
+                        label: 'Completion Rate (%)',
+                        data: sortedModules.map(m => 
+                            moduleStats[m].total > 0 ? 
+                            (moduleStats[m].finished / moduleStats[m].total * 100) : 0
+                        ),
+                        backgroundColor: 'rgba(156, 39, 176, 0.8)',
+                        borderColor: 'rgba(156, 39, 176, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: { display: true, text: 'Completion Rate (%)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateTable() {
+            const tbody = document.getElementById('userTableBody');
+            tbody.innerHTML = '';
+            
+            const sorted = [...filteredData].sort((a, b) => b.total_python_hours - a.total_python_hours);
+            
+            sorted.forEach((user, index) => {
+                const modules = new Set(user.python_projects.map(p => p.project_name)).size;
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td><strong>${index + 1}</strong></td>
+                    <td>${user.login}</td>
+                    <td>${user.total_python_hours.toFixed(2)}h</td>
+                    <td>${user.python_projects.length}</td>
+                    <td>${(user.total_python_hours / user.python_projects.length).toFixed(2)}h</td>
+                    <td>${modules}</td>
+                    <td>${getStatusBadges(user.python_projects)}</td>
+                `;
+            });
+        }
+
+        function getStatusBadges(projects) {
+            const statusCount = {};
+            projects.forEach(p => {
+                const status = p.status || 'unknown';
+                statusCount[status] = (statusCount[status] || 0) + 1;
+            });
+
+            return Object.entries(statusCount).map(([status, count]) => {
+                const badgeClass = status === 'finished' ? 'badge-success' : 
+                                 status === 'in_progress' ? 'badge-warning' : 
+                                 status === 'searching_a_group' ? 'badge-info' : 'badge-danger';
+                return `<span class="badge ${badgeClass}">${status}: ${count}</span>`;
+            }).join(' ');
+        }
+
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchUser').value.toLowerCase();
+            const moduleFilter = document.getElementById('filterModule').value;
+            const statusFilter = document.getElementById('filterStatus').value;
+            const moduleRangeStart = document.getElementById('moduleRangeStart').value;
+            const moduleRangeEnd = document.getElementById('moduleRangeEnd').value;
+            const completedOnly = document.getElementById('completedOnly').checked;
+            const finishedOnly = document.getElementById('finishedOnly').checked;
+            const minHours = parseFloat(document.getElementById('minHours').value);
+            const maxHours = parseFloat(document.getElementById('maxHours').value);
+            const minProjects = parseInt(document.getElementById('minProjects').value);
+
+            // Determine module range indices
+            let startIdx = moduleRangeStart ? allModules.indexOf(moduleRangeStart) : 0;
+            let endIdx = moduleRangeEnd ? allModules.indexOf(moduleRangeEnd) : allModules.length - 1;
+            
+            if (startIdx === -1) startIdx = 0;
+            if (endIdx === -1) endIdx = allModules.length - 1;
+            
+            const moduleRange = moduleRangeStart || moduleRangeEnd ? 
+                new Set(allModules.slice(startIdx, endIdx + 1)) : null;
+
+            filteredData = allData.filter(user => {
+                // Search filter
+                if (searchTerm && !user.login.toLowerCase().includes(searchTerm)) {
+                    return false;
+                }
+
+                // Hours filters
+                if (user.total_python_hours < minHours || user.total_python_hours > maxHours) {
+                    return false;
+                }
+
+                // Min projects filter
+                if (user.python_projects.length < minProjects) {
+                    return false;
+                }
+
+                // Filter user's projects based on criteria
+                let userProjects = user.python_projects;
+
+                // Module filter
+                if (moduleFilter) {
+                    userProjects = userProjects.filter(p => p.project_name === moduleFilter);
+                    if (userProjects.length === 0) return false;
+                }
+
+                // Module range filter
+                if (moduleRange) {
+                    userProjects = userProjects.filter(p => moduleRange.has(p.project_name));
+                    if (userProjects.length === 0) return false;
+                }
+
+                // Status filter
+                if (statusFilter) {
+                    userProjects = userProjects.filter(p => p.status === statusFilter);
+                    if (userProjects.length === 0) return false;
+                }
+
+                // Completed only filter
+                if (completedOnly) {
+                    userProjects = userProjects.filter(p => p.status === 'finished' || p['validated?'] === true);
+                    if (userProjects.length === 0) return false;
+                }
+
+                // Finished only filter
+                if (finishedOnly) {
+                    userProjects = userProjects.filter(p => p.status === 'finished');
+                    if (userProjects.length === 0) return false;
+                }
+
+                return true;
+            });
+
+            updateStats();
+            createCharts();
+            updateTable();
+            updateFilterSummary();
+        }
+
+        function resetFilters() {
+            document.getElementById('searchUser').value = '';
+            document.getElementById('filterModule').value = '';
+            document.getElementById('filterStatus').value = '';
+            document.getElementById('moduleRangeStart').value = '';
+            document.getElementById('moduleRangeEnd').value = '';
+            document.getElementById('completedOnly').checked = false;
+            document.getElementById('finishedOnly').checked = false;
+            document.getElementById('minHours').value = 0;
+            document.getElementById('maxHours').value = 1000;
+            document.getElementById('minProjects').value = 0;
+            document.getElementById('minHoursValue').textContent = '0';
+            document.getElementById('maxHoursValue').textContent = '1000';
+            document.getElementById('minProjectsValue').textContent = '0';
+            
+            filteredData = allData;
+            updateStats();
+            createCharts();
+            updateTable();
+            updateFilterSummary();
+        }
+
+        function updateFilterSummary() {
+            const summary = document.getElementById('filterSummary');
+            const filters = [];
+            
+            const searchTerm = document.getElementById('searchUser').value;
+            if (searchTerm) filters.push(`Search: "${searchTerm}"`);
+            
+            const moduleFilter = document.getElementById('filterModule').value;
+            if (moduleFilter) filters.push(`Module: ${moduleFilter}`);
+            
+            const statusFilter = document.getElementById('filterStatus').value;
+            if (statusFilter) filters.push(`Status: ${statusFilter}`);
+            
+            const moduleRangeStart = document.getElementById('moduleRangeStart').value;
+            const moduleRangeEnd = document.getElementById('moduleRangeEnd').value;
+            if (moduleRangeStart || moduleRangeEnd) {
+                filters.push(`Range: ${moduleRangeStart || 'Start'} to ${moduleRangeEnd || 'End'}`);
+            }
+            
+            if (document.getElementById('completedOnly').checked) {
+                filters.push('Completed Only');
+            }
+            
+            if (document.getElementById('finishedOnly').checked) {
+                filters.push('Finished Only');
+            }
+            
+            const minHours = document.getElementById('minHours').value;
+            const maxHours = document.getElementById('maxHours').value;
+            if (minHours > 0 || maxHours < 1000) {
+                filters.push(`Hours: ${minHours}-${maxHours}`);
+            }
+            
+            const minProjects = document.getElementById('minProjects').value;
+            if (minProjects > 0) {
+                filters.push(`Min Projects: ${minProjects}`);
+            }
+            
+            if (filters.length > 0) {
+                summary.textContent = `Active Filters: ${filters.join(' • ')}`;
+                summary.style.display = 'block';
+            } else {
+                summary.style.display = 'none';
+            }
+        }
+
+        function exportFilteredData() {
+            const dataStr = JSON.stringify(filteredData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `filtered_data_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function setupEventListeners() {
+            document.getElementById('searchUser').addEventListener('input', applyFilters);
+            document.getElementById('filterModule').addEventListener('change', applyFilters);
+            document.getElementById('filterStatus').addEventListener('change', applyFilters);
+            document.getElementById('moduleRangeStart').addEventListener('change', applyFilters);
+            document.getElementById('moduleRangeEnd').addEventListener('change', applyFilters);
+            document.getElementById('completedOnly').addEventListener('change', applyFilters);
+            document.getElementById('finishedOnly').addEventListener('change', applyFilters);
+            
+            // Range sliders
+            document.getElementById('minHours').addEventListener('input', function(e) {
+                document.getElementById('minHoursValue').textContent = e.target.value;
+            });
+            document.getElementById('maxHours').addEventListener('input', function(e) {
+                document.getElementById('maxHoursValue').textContent = e.target.value;
+            });
+            document.getElementById('minProjects').addEventListener('input', function(e) {
+                document.getElementById('minProjectsValue').textContent = e.target.value;
+            });
+            
+            document.getElementById('minHours').addEventListener('change', applyFilters);
+            document.getElementById('maxHours').addEventListener('change', applyFilters);
+            document.getElementById('minProjects').addEventListener('change', applyFilters);
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
