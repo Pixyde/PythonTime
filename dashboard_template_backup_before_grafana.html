@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Time Tracker Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #e9ecef;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --border-color: #dee2e6;
+            --accent-primary: #0d6efd;
+            --accent-secondary: #6610f2;
+            --success: #198754;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --card-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            --hover-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            --transition: all 0.3s ease;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #404040;
+            --text-primary: #e9ecef;
+            --text-secondary: #adb5bd;
+            --border-color: #495057;
+            --card-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            --hover-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            transition: var(--transition);
+        }
+
+        body.font-small { font-size: 14px; }
+        body.font-medium { font-size: 16px; }
+        body.font-large { font-size: 18px; }
+
+        body.density-compact .container { max-width: 100%; padding: 0.5rem; }
+        body.density-comfortable .container { max-width: 1400px; padding: 1rem; }
+        body.density-spacious .container { max-width: 1200px; padding: 2rem; }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        header {
+            background: var(--bg-primary);
+            border-bottom: 2px solid var(--accent-primary);
+            padding: 1.5rem 0;
+            margin-bottom: 2rem;
+            box-shadow: var(--card-shadow);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        h1 {
+            color: var(--accent-primary);
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: var(--transition);
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--hover-shadow);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .btn-icon {
+            padding: 0.5rem;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .section {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--card-shadow);
+            transition: var(--transition);
+        }
+
+        .section:hover {
+            box-shadow: var(--hover-shadow);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .collapse-icon {
+            transition: transform 0.3s;
+        }
+
+        .section.collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+
+        .section.collapsed .section-content {
+            display: none;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            transition: var(--transition);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--hover-shadow);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-weight: 500;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 0.6rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+
+        .quick-filters {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        .quick-filter-btn {
+            padding: 0.4rem 0.8rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: var(--transition);
+        }
+
+        .quick-filter-btn:hover,
+        .quick-filter-btn.active {
+            background: var(--accent-primary);
+            color: white;
+            border-color: var(--accent-primary);
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .chart-container {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+            transition: var(--transition);
+        }
+
+        .chart-container:hover {
+            box-shadow: var(--hover-shadow);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .chart-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .chart-settings {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .chart-settings.open {
+            max-height: 500px;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.8rem;
+        }
+
+        .setting-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .setting-control {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        input[type="range"] {
+            width: 150px;
+        }
+
+        select.chart-select {
+            padding: 0.3rem 0.6rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 0.85rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--border-color);
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--accent-primary);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            height: 400px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-primary);
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .close-modal {
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .help-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .help-section h3 {
+            color: var(--accent-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .help-section ul {
+            list-style: none;
+            padding-left: 1rem;
+        }
+
+        .help-section li {
+            margin-bottom: 0.5rem;
+        }
+
+        .kbd {
+            background: var(--bg-tertiary);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .global-settings-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: var(--hover-shadow);
+            z-index: 1001;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header-content {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .header-actions {
+                justify-content: center;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+                text-align: center;
+            }
+
+            .setting-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            input[type="range"] {
+                width: 100%;
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--accent-primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .color-scheme-preview {
+            display: flex;
+            gap: 4px;
+            padding: 0.3rem;
+            background: var(--bg-primary);
+            border-radius: 4px;
+        }
+
+        .color-scheme-preview span {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="font-medium density-comfortable">
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <h1>🐍 Python Time Tracker Dashboard</h1>
+                <div class="header-actions">
+                    <button class="btn" onclick="window.location.reload()">🔄 Refresh Data</button>
+                    <button class="btn btn-secondary" onclick="openGlobalSettings()">⚙️ Settings</button>
+                    <button class="btn btn-secondary" onclick="openHelp()">❓ Help</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Stats Cards -->
+        <div class="stats-grid" id="statsGrid"></div>
+
+        <!-- Filters Section -->
+        <div class="section" id="filtersSection">
+            <div class="section-header" onclick="toggleSection('filtersSection')">
+                <h2 class="section-title">🔍 Filters</h2>
+                <span class="collapse-icon">▼</span>
+            </div>
+            <div class="section-content">
+                <div class="filters">
+                    <div class="filter-group">
+                        <label for="moduleFilter">Module</label>
+                        <select id="moduleFilter" onchange="applyFilters()">
+                            <option value="">All Modules</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="projectFilter">Project</label>
+                        <select id="projectFilter" onchange="applyFilters()">
+                            <option value="">All Projects</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="minHoursFilter">Min Hours</label>
+                        <input type="number" id="minHoursFilter" min="0" step="0.1" placeholder="0" onchange="applyFilters()">
+                    </div>
+                    <div class="filter-group">
+                        <label for="maxHoursFilter">Max Hours</label>
+                        <input type="number" id="maxHoursFilter" min="0" step="0.1" placeholder="∞" onchange="applyFilters()">
+                    </div>
+                </div>
+                <div class="quick-filters">
+                    <button class="quick-filter-btn" onclick="applyQuickFilter('all', event)">All Data</button>
+                    <button class="quick-filter-btn" onclick="applyQuickFilter('active', event)">Active Users (>10h)</button>
+                    <button class="quick-filter-btn" onclick="applyQuickFilter('beginners', event)">Beginners (<5h)</button>
+                    <button class="quick-filter-btn" onclick="applyQuickFilter('completed', event)">Completed Projects</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid" id="chartsGrid"></div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Help & Keyboard Shortcuts</h2>
+                <span class="close-modal" onclick="closeHelp()">×</span>
+            </div>
+            <div class="help-section">
+                <h3>Keyboard Shortcuts</h3>
+                <ul>
+                    <li><span class="kbd">R</span> - Refresh data</li>
+                    <li><span class="kbd">S</span> - Open settings</li>
+                    <li><span class="kbd">H</span> or <span class="kbd">?</span> - Show help</li>
+                    <li><span class="kbd">Esc</span> - Close modals</li>
+                    <li><span class="kbd">F</span> - Focus filter section</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h3>Chart Controls</h3>
+                <ul>
+                    <li>Click ⚙️ on any chart to open customization options</li>
+                    <li>Use Top N slider to limit displayed items</li>
+                    <li>Change chart type (bar/line/pie/doughnut)</li>
+                    <li>Select different color schemes</li>
+                    <li>Toggle labels and animations</li>
+                    <li>Export individual charts as images</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h3>Filters</h3>
+                <ul>
+                    <li>Use dropdowns to filter by module or project</li>
+                    <li>Set min/max hours to filter by time spent</li>
+                    <li>Quick filter buttons for common views</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h3>Settings</h3>
+                <ul>
+                    <li>Theme: Light, Dark, or Auto (follows system)</li>
+                    <li>Layout Density: Compact, Comfortable, or Spacious</li>
+                    <li>Font Size: Small, Medium, or Large</li>
+                    <li>All settings are saved automatically</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">⚙️ Global Settings</h2>
+                <span class="close-modal" onclick="closeGlobalSettings()">×</span>
+            </div>
+            <div class="global-settings-panel">
+                <div class="filter-group">
+                    <label for="themeSelect">Theme</label>
+                    <select id="themeSelect" class="chart-select" onchange="changeTheme(this.value)">
+                        <option value="auto">Auto</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="densitySelect">Layout Density</label>
+                    <select id="densitySelect" class="chart-select" onchange="changeDensity(this.value)">
+                        <option value="compact">Compact</option>
+                        <option value="comfortable">Comfortable</option>
+                        <option value="spacious">Spacious</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="fontSizeSelect">Font Size</label>
+                    <select id="fontSizeSelect" class="chart-select" onchange="changeFontSize(this.value)">
+                        <option value="small">Small</option>
+                        <option value="medium">Medium</option>
+                        <option value="large">Large</option>
+                    </select>
+                </div>
+            </div>
+            <div style="margin-top: 1.5rem; display: flex; gap: 0.5rem;">
+                <button class="btn" onclick="saveConfiguration()">💾 Save Configuration</button>
+                <button class="btn btn-secondary" onclick="loadConfiguration()">📂 Load Configuration</button>
+                <button class="btn btn-secondary" onclick="resetConfiguration()">🔄 Reset to Default</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const COLOR_SCHEMES = {
+            default: ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545', '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0'],
+            warm: ['#ff6b6b', '#ee5a6f', '#f06595', '#cc5de8', '#845ef7', '#5c7cfa', '#339af0', '#22b8cf', '#20c997', '#51cf66'],
+            cool: ['#087f5b', '#0ca678', '#12b886', '#20c997', '#38d9a9', '#51cf66', '#94d82d', '#fcc419', '#ff922b', '#ff6b6b'],
+            pastel: ['#ffc9c9', '#b2f2bb', '#a5d8ff', '#ffec99', '#e7c5ff', '#ffd8a8', '#c3fae8', '#d0bfff', '#ffe066', '#ffa8a8'],
+            vibrant: ['#fa5252', '#e64980', '#be4bdb', '#7950f2', '#4c6ef5', '#228be6', '#15aabf', '#12b886', '#40c057', '#82c91e'],
+            monochrome: ['#212529', '#495057', '#6c757d', '#adb5bd', '#ced4da', '#dee2e6', '#e9ecef', '#f8f9fa', '#ffffff', '#000000']
+        };
+
+        let rawData = {{DATA_PLACEHOLDER}};
+        let filteredData = [...rawData];
+        let charts = {};
+        let chartConfigs = {};
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSettings();
+            initializeData();
+            setupKeyboardShortcuts();
+        });
+
+        function initializeData() {
+            populateFilters();
+            applyFilters();
+            createCharts();
+            updateStats();
+        }
+
+        function populateFilters() {
+            const modules = [...new Set(rawData.map(d => d.module))].sort();
+            const projects = [...new Set(rawData.map(d => d.project))].sort();
+
+            const moduleFilter = document.getElementById('moduleFilter');
+            const projectFilter = document.getElementById('projectFilter');
+
+            modules.forEach(module => {
+                const option = document.createElement('option');
+                option.value = module;
+                option.textContent = module;
+                moduleFilter.appendChild(option);
+            });
+
+            projects.forEach(project => {
+                const option = document.createElement('option');
+                option.value = project;
+                option.textContent = project;
+                projectFilter.appendChild(option);
+            });
+        }
+
+        function applyFilters() {
+            const moduleFilter = document.getElementById('moduleFilter').value;
+            const projectFilter = document.getElementById('projectFilter').value;
+            const minHours = parseFloat(document.getElementById('minHoursFilter').value) || 0;
+            const maxHours = parseFloat(document.getElementById('maxHoursFilter').value) || Infinity;
+
+            filteredData = rawData.filter(d => {
+                if (moduleFilter && d.module !== moduleFilter) return false;
+                if (projectFilter && d.project !== projectFilter) return false;
+                if (d.total_hours < minHours || d.total_hours > maxHours) return false;
+                return true;
+            });
+
+            updateAllCharts();
+            updateStats();
+        }
+
+        function applyQuickFilter(type, event) {
+            document.querySelectorAll('.quick-filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            document.getElementById('moduleFilter').value = '';
+            document.getElementById('projectFilter').value = '';
+            document.getElementById('minHoursFilter').value = '';
+            document.getElementById('maxHoursFilter').value = '';
+
+            switch(type) {
+                case 'all':
+                    break;
+                case 'active':
+                    document.getElementById('minHoursFilter').value = '10';
+                    break;
+                case 'beginners':
+                    document.getElementById('maxHoursFilter').value = '5';
+                    break;
+                case 'completed':
+                    document.getElementById('projectFilter').value = 'Completed';
+                    break;
+            }
+
+            applyFilters();
+        }
+
+        function updateStats() {
+            const statsGrid = document.getElementById('statsGrid');
+            const totalUsers = new Set(filteredData.map(d => d.username)).size;
+            const totalHours = filteredData.reduce((sum, d) => sum + d.total_hours, 0);
+            const avgHours = totalUsers > 0 ? totalHours / totalUsers : 0;
+            const pythonProjects = new Set(filteredData.map(d => d.project)).size;
+            const completedModules = filteredData.filter(d => d.status === 'Completed').length;
+            const completionRate = filteredData.length > 0 ? (completedModules / filteredData.length * 100) : 0;
+
+            const stats = [
+                { label: 'Total Users', value: totalUsers, icon: '👥' },
+                { label: 'Filtered Users', value: totalUsers, icon: '🔍' },
+                { label: 'Total Hours', value: totalHours.toFixed(1), icon: '⏱️' },
+                { label: 'Avg Hours/User', value: avgHours.toFixed(1), icon: '📊' },
+                { label: 'Python Projects', value: pythonProjects, icon: '🐍' },
+                { label: 'Completion Rate', value: `${completionRate.toFixed(1)}%`, icon: '✅' }
+            ];
+
+            statsGrid.innerHTML = stats.map(stat => `
+                <div class="stat-card">
+                    <div class="stat-value">${stat.icon} ${stat.value}</div>
+                    <div class="stat-label">${stat.label}</div>
+                </div>
+            `).join('');
+        }
+
+        function createCharts() {
+            const chartsGrid = document.getElementById('chartsGrid');
+            const chartDefinitions = [
+                { id: 'topUsers', title: '👑 Top Users by Hours', type: 'bar', hasTopN: true },
+                { id: 'moduleAvg', title: '📚 Module Average Times', type: 'bar', hasTopN: true },
+                { id: 'timeDistribution', title: '⏰ Time Distribution', type: 'pie', hasTopN: false },
+                { id: 'projectStatus', title: '📈 Project Status', type: 'doughnut', hasTopN: false },
+                { id: 'moduleCompletion', title: '✅ Module Completion Count', type: 'bar', hasTopN: true },
+                { id: 'moduleProgression', title: '📊 Module Progression', type: 'line', hasTopN: true },
+                { id: 'completionRate', title: '🎯 Completion Rate by Module', type: 'bar', hasTopN: true },
+                { id: 'speedRunners', title: '⚡ Speed Runners', type: 'bar', hasTopN: true },
+                { id: 'difficultyScatter', title: '🎲 Project Difficulty Scatter', type: 'scatter', hasTopN: false }
+            ];
+
+            chartDefinitions.forEach(def => {
+                const container = createChartContainer(def);
+                chartsGrid.appendChild(container);
+                
+                chartConfigs[def.id] = {
+                    topN: 10,
+                    chartType: def.type,
+                    colorScheme: 'default',
+                    showLabels: true,
+                    animate: true
+                };
+
+                const savedConfig = localStorage.getItem(`chart_${def.id}`);
+                if (savedConfig) {
+                    chartConfigs[def.id] = { ...chartConfigs[def.id], ...JSON.parse(savedConfig) };
+                }
+
+                updateChart(def.id);
+            });
+        }
+
+        function createChartContainer(def) {
+            const container = document.createElement('div');
+            container.className = 'chart-container';
+            container.innerHTML = `
+                <div class="chart-header">
+                    <h3 class="chart-title">${def.title}</h3>
+                    <div class="chart-controls">
+                        <button class="btn btn-secondary btn-icon" onclick="toggleSettings('${def.id}')" title="Settings">⚙️</button>
+                        <button class="btn btn-secondary btn-icon" onclick="exportChart('${def.id}')" title="Export">💾</button>
+                    </div>
+                </div>
+                <div class="chart-settings" id="settings-${def.id}">
+                    ${def.hasTopN ? `
+                    <div class="setting-row">
+                        <span class="setting-label">Top N</span>
+                        <div class="setting-control">
+                            <input type="range" min="5" max="50" value="10" 
+                                   oninput="updateChartConfig('${def.id}', 'topN', parseInt(this.value)); this.nextElementSibling.textContent = this.value"
+                                   id="topN-${def.id}">
+                            <span>10</span>
+                        </div>
+                    </div>
+                    ` : ''}
+                    <div class="setting-row">
+                        <span class="setting-label">Chart Type</span>
+                        <select class="chart-select" onchange="updateChartConfig('${def.id}', 'chartType', this.value)" id="type-${def.id}">
+                            <option value="bar">Bar</option>
+                            <option value="line">Line</option>
+                            <option value="pie">Pie</option>
+                            <option value="doughnut">Doughnut</option>
+                            ${def.type === 'scatter' ? '<option value="scatter">Scatter</option>' : ''}
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">Color Scheme</span>
+                        <select class="chart-select" onchange="updateChartConfig('${def.id}', 'colorScheme', this.value)" id="color-${def.id}">
+                            <option value="default">Default</option>
+                            <option value="warm">Warm</option>
+                            <option value="cool">Cool</option>
+                            <option value="pastel">Pastel</option>
+                            <option value="vibrant">Vibrant</option>
+                            <option value="monochrome">Monochrome</option>
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">Show Labels</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="updateChartConfig('${def.id}', 'showLabels', this.checked)" id="labels-${def.id}">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">Animations</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="updateChartConfig('${def.id}', 'animate', this.checked)" id="animate-${def.id}">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="canvas-wrapper">
+                    <canvas id="chart-${def.id}"></canvas>
+                </div>
+            `;
+            return container;
+        }
+
+        function toggleSettings(chartId) {
+            const settings = document.getElementById(`settings-${chartId}`);
+            settings.classList.toggle('open');
+        }
+
+        function updateChartConfig(chartId, key, value) {
+            chartConfigs[chartId][key] = value;
+            localStorage.setItem(`chart_${chartId}`, JSON.stringify(chartConfigs[chartId]));
+            updateChart(chartId);
+        }
+
+        function updateChart(chartId) {
+            const config = chartConfigs[chartId];
+            const canvas = document.getElementById(`chart-${chartId}`);
+            
+            if (charts[chartId]) {
+                charts[chartId].destroy();
+            }
+
+            const chartData = getChartData(chartId);
+            const ctx = canvas.getContext('2d');
+
+            const chartConfig = {
+                type: config.chartType,
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: config.animate ? { duration: 750 } : false,
+                    plugins: {
+                        legend: {
+                            display: ['pie', 'doughnut'].includes(config.chartType),
+                            position: 'bottom',
+                            labels: { color: getComputedStyle(document.body).getPropertyValue('--text-primary') }
+                        },
+                        tooltip: {
+                            backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg-primary'),
+                            titleColor: getComputedStyle(document.body).getPropertyValue('--text-primary'),
+                            bodyColor: getComputedStyle(document.body).getPropertyValue('--text-secondary'),
+                            borderColor: getComputedStyle(document.body).getPropertyValue('--border-color'),
+                            borderWidth: 1
+                        }
+                    },
+                    scales: ['bar', 'line'].includes(config.chartType) ? {
+                        x: {
+                            ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-secondary') },
+                            grid: { color: getComputedStyle(document.body).getPropertyValue('--border-color') }
+                        },
+                        y: {
+                            ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-secondary') },
+                            grid: { color: getComputedStyle(document.body).getPropertyValue('--border-color') }
+                        }
+                    } : {}
+                }
+            };
+
+            if (config.chartType === 'scatter') {
+                chartConfig.options.scales = {
+                    x: {
+                        type: 'linear',
+                        position: 'bottom',
+                        ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-secondary') },
+                        grid: { color: getComputedStyle(document.body).getPropertyValue('--border-color') },
+                        title: { display: true, text: 'Total Hours', color: getComputedStyle(document.body).getPropertyValue('--text-primary') }
+                    },
+                    y: {
+                        ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-secondary') },
+                        grid: { color: getComputedStyle(document.body).getPropertyValue('--border-color') },
+                        title: { display: true, text: 'Completion Rate %', color: getComputedStyle(document.body).getPropertyValue('--text-primary') }
+                    }
+                };
+            }
+
+            charts[chartId] = new Chart(ctx, chartConfig);
+
+            // Update UI controls
+            const typeSelect = document.getElementById(`type-${chartId}`);
+            if (typeSelect) typeSelect.value = config.chartType;
+            
+            const colorSelect = document.getElementById(`color-${chartId}`);
+            if (colorSelect) colorSelect.value = config.colorScheme;
+            
+            const labelsToggle = document.getElementById(`labels-${chartId}`);
+            if (labelsToggle) labelsToggle.checked = config.showLabels;
+            
+            const animateToggle = document.getElementById(`animate-${chartId}`);
+            if (animateToggle) animateToggle.checked = config.animate;
+            
+            const topNInput = document.getElementById(`topN-${chartId}`);
+            if (topNInput) {
+                topNInput.value = config.topN;
+                topNInput.nextElementSibling.textContent = config.topN;
+            }
+        }
+
+        function getChartData(chartId) {
+            const config = chartConfigs[chartId];
+            const colors = COLOR_SCHEMES[config.colorScheme];
+
+            switch(chartId) {
+                case 'topUsers':
+                    const userHours = {};
+                    filteredData.forEach(d => {
+                        userHours[d.username] = (userHours[d.username] || 0) + d.total_hours;
+                    });
+                    const topUsers = Object.entries(userHours)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, config.topN);
+                    return {
+                        labels: topUsers.map(u => u[0]),
+                        datasets: [{
+                            label: 'Hours',
+                            data: topUsers.map(u => u[1].toFixed(2)),
+                            backgroundColor: colors
+                        }]
+                    };
+
+                case 'moduleAvg':
+                    const moduleStats = {};
+                    filteredData.forEach(d => {
+                        if (!moduleStats[d.module]) moduleStats[d.module] = [];
+                        moduleStats[d.module].push(d.total_hours);
+                    });
+                    const moduleAvg = Object.entries(moduleStats)
+                        .map(([module, hours]) => ({
+                            module,
+                            avg: hours.reduce((a, b) => a + b, 0) / hours.length
+                        }))
+                        .sort((a, b) => b.avg - a.avg)
+                        .slice(0, config.topN);
+                    return {
+                        labels: moduleAvg.map(m => m.module),
+                        datasets: [{
+                            label: 'Average Hours',
+                            data: moduleAvg.map(m => m.avg.toFixed(2)),
+                            backgroundColor: colors
+                        }]
+                    };
+
+                case 'timeDistribution':
+                    const ranges = { '0-5h': 0, '5-10h': 0, '10-20h': 0, '20-50h': 0, '50+h': 0 };
+                    filteredData.forEach(d => {
+                        if (d.total_hours < 5) ranges['0-5h']++;
+                        else if (d.total_hours < 10) ranges['5-10h']++;
+                        else if (d.total_hours < 20) ranges['10-20h']++;
+                        else if (d.total_hours < 50) ranges['20-50h']++;
+                        else ranges['50+h']++;
+                    });
+                    return {
+                        labels: Object.keys(ranges),
+                        datasets: [{
+                            data: Object.values(ranges),
+                            backgroundColor: colors
+                        }]
+                    };
+
+                case 'projectStatus':
+                    const statusCounts = {};
+                    filteredData.forEach(d => {
+                        statusCounts[d.status] = (statusCounts[d.status] || 0) + 1;
+                    });
+                    return {
+                        labels: Object.keys(statusCounts),
+                        datasets: [{
+                            data: Object.values(statusCounts),
+                            backgroundColor: colors
+                        }]
+                    };
+
+                case 'moduleCompletion':
+                    const completionCounts = {};
+                    filteredData.forEach(d => {
+                        if (d.status === 'Completed') {
+                            completionCounts[d.module] = (completionCounts[d.module] || 0) + 1;
+                        }
+                    });
+                    const topCompleted = Object.entries(completionCounts)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, config.topN);
+                    return {
+                        labels: topCompleted.map(m => m[0]),
+                        datasets: [{
+                            label: 'Completions',
+                            data: topCompleted.map(m => m[1]),
+                            backgroundColor: colors
+                        }]
+                    };
+
+                case 'moduleProgression':
+                    const progressionData = {};
+                    filteredData.forEach(d => {
+                        if (!progressionData[d.module]) progressionData[d.module] = [];
+                        progressionData[d.module].push(d.total_hours);
+                    });
+                    const topModules = Object.entries(progressionData)
+                        .map(([module, hours]) => ({
+                            module,
+                            total: hours.reduce((a, b) => a + b, 0)
+                        }))
+                        .sort((a, b) => b.total - a.total)
+                        .slice(0, config.topN);
+                    return {
+                        labels: topModules.map(m => m.module),
+                        datasets: [{
+                            label: 'Total Hours',
+                            data: topModules.map(m => m.total.toFixed(2)),
+                            borderColor: colors[0],
+                            backgroundColor: colors[0] + '33',
+                            fill: true
+                        }]
+                    };
+
+                case 'completionRate':
+                    const moduleCompletionRate = {};
+                    filteredData.forEach(d => {
+                        if (!moduleCompletionRate[d.module]) {
+                            moduleCompletionRate[d.module] = { total: 0, completed: 0 };
+                        }
+                        moduleCompletionRate[d.module].total++;
+                        if (d.status === 'Completed') {
+                            moduleCompletionRate[d.module].completed++;
+                        }
+                    });
+                    const rateData = Object.entries(moduleCompletionRate)
+                        .map(([module, stats]) => ({
+                            module,
+                            rate: (stats.completed / stats.total * 100)
+                        }))
+                        .sort((a, b) => b.rate - a.rate)
+                        .slice(0, config.topN);
+                    return {
+                        labels: rateData.map(m => m.module),
+                        datasets: [{
+                            label: 'Completion %',
+                            data: rateData.map(m => m.rate.toFixed(1)),
+                            backgroundColor: colors
+                        }]
+                    };
+
+                case 'speedRunners':
+                    const completedUsers = filteredData
+                        .filter(d => d.status === 'Completed')
+                        .sort((a, b) => a.total_hours - b.total_hours)
+                        .slice(0, config.topN);
+                    return {
+                        labels: completedUsers.map(u => u.username),
+                        datasets: [{
+                            label: 'Hours to Complete',
+                            data: completedUsers.map(u => u.total_hours.toFixed(2)),
+                            backgroundColor: colors
+                        }]
+                    };
+
+                case 'difficultyScatter':
+                    const scatterData = filteredData.map(d => {
+                        // Calculate completion rate based on status
+                        const completionRate = d.status === 'finished' ? 100 : 
+                            d.status === 'in_progress' ? 50 : 0;
+                        return {
+                            x: d.total_hours || 0,
+                            y: completionRate,
+                            label: `${d.username} - ${d.projects?.length || 0} projects`
+                        };
+                    }).filter(d => d.x > 0); // Only show users with tracked time
+                    return {
+                        datasets: [{
+                            label: 'Users',
+                            data: scatterData,
+                            backgroundColor: colors[0],
+                            borderColor: colors[1],
+                            borderWidth: 1,
+                            pointRadius: 6,
+                            pointHoverRadius: 8
+                        }]
+                    };
+            }
+        }
+
+        function updateAllCharts() {
+            Object.keys(charts).forEach(chartId => updateChart(chartId));
+        }
+
+        function exportChart(chartId) {
+            const canvas = document.getElementById(`chart-${chartId}`);
+            const url = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = `${chartId}_chart.png`;
+            link.href = url;
+            link.click();
+            showToast('Chart exported successfully!');
+        }
+
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            section.classList.toggle('collapsed');
+        }
+
+        function changeTheme(theme) {
+            if (theme === 'auto') {
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                theme = prefersDark ? 'dark' : 'light';
+            }
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', document.getElementById('themeSelect').value);
+            updateAllCharts();
+        }
+
+        function changeDensity(density) {
+            document.body.className = document.body.className.replace(/density-\w+/, `density-${density}`);
+            localStorage.setItem('density', density);
+        }
+
+        function changeFontSize(size) {
+            document.body.className = document.body.className.replace(/font-\w+/, `font-${size}`);
+            localStorage.setItem('fontSize', size);
+        }
+
+        function openHelp() {
+            document.getElementById('helpModal').classList.add('show');
+        }
+
+        function closeHelp() {
+            document.getElementById('helpModal').classList.remove('show');
+        }
+
+        function openGlobalSettings() {
+            document.getElementById('settingsModal').classList.add('show');
+        }
+
+        function closeGlobalSettings() {
+            document.getElementById('settingsModal').classList.remove('show');
+        }
+
+        function saveConfiguration() {
+            const config = {
+                theme: document.getElementById('themeSelect').value,
+                density: document.getElementById('densitySelect').value,
+                fontSize: document.getElementById('fontSizeSelect').value,
+                charts: chartConfigs
+            };
+            localStorage.setItem('dashboardConfig', JSON.stringify(config));
+            showToast('Configuration saved!');
+        }
+
+        function loadConfiguration() {
+            const configStr = localStorage.getItem('dashboardConfig');
+            if (!configStr) return;
+            
+            const config = JSON.parse(configStr);
+            if (config) {
+                if (config.theme) {
+                    document.getElementById('themeSelect').value = config.theme;
+                    changeTheme(config.theme);
+                }
+                if (config.density) {
+                    document.getElementById('densitySelect').value = config.density;
+                    changeDensity(config.density);
+                }
+                if (config.fontSize) {
+                    document.getElementById('fontSizeSelect').value = config.fontSize;
+                    changeFontSize(config.fontSize);
+                }
+                if (config.charts) {
+                    chartConfigs = config.charts;
+                    updateAllCharts();
+                }
+                showToast('Configuration loaded!');
+            } else {
+                showToast('No saved configuration found');
+            }
+        }
+
+        function resetConfiguration() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        function loadSettings() {
+            const theme = localStorage.getItem('theme') || 'auto';
+            const density = localStorage.getItem('density') || 'comfortable';
+            const fontSize = localStorage.getItem('fontSize') || 'medium';
+
+            document.getElementById('themeSelect').value = theme;
+            document.getElementById('densitySelect').value = density;
+            document.getElementById('fontSizeSelect').value = fontSize;
+
+            changeTheme(theme);
+            changeDensity(density);
+            changeFontSize(fontSize);
+        }
+
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+                
+                switch(e.key.toLowerCase()) {
+                    case 'r':
+                        window.location.reload();
+                        break;
+                    case 's':
+                        openGlobalSettings();
+                        break;
+                    case 'h':
+                    case '?':
+                        openHelp();
+                        break;
+                    case 'Escape':
+                        closeHelp();
+                        closeGlobalSettings();
+                        break;
+                    case 'f':
+                        document.getElementById('moduleFilter').focus();
+                        break;
+                }
+            });
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if (localStorage.getItem('theme') === 'auto') {
+                changeTheme('auto');
+            }
+        });
+    </script>
+</body>
+</html>
