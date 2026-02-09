@@ -58,10 +58,68 @@ def load_config():
     return client_id, client_secret
 
 
-
-
+def select_campus(client: API42Client) -> int:
+    """
+    Let user select a campus from the available list
     
-    return students
+    Args:
+        client: API client instance
+        
+    Returns:
+        Selected campus ID, or None for no filtering
+    """
+    print("\n" + "=" * 60)
+    print("CAMPUS SELECTION")
+    print("=" * 60)
+    
+    campuses = client.get_campuses()
+    
+    if not campuses:
+        print("No campuses found. Analyzing all users globally.")
+        return None
+    
+    # Sort campuses by name for easier navigation
+    campuses.sort(key=lambda c: c.get('name', ''))
+    
+    print("\nAvailable campuses:")
+    print("-" * 60)
+    print(f"  {'0':>3}. {'ALL USERS (No campus filtering)':<50}")
+    print("-" * 60)
+    for i, campus in enumerate(campuses, 1):
+        name = campus.get('name', 'Unknown')
+        city = campus.get('city', 'Unknown')
+        country = campus.get('country', 'Unknown')
+        campus_id = campus.get('id', 0)
+        print(f"  {i:3d}. {name:30s} ({city}, {country}) [ID: {campus_id}]")
+    
+    print("-" * 60)
+    
+    # Get user selection
+    while True:
+        try:
+            selection = input("\nEnter campus number (or 'q' to quit): ").strip()
+            if selection.lower() == 'q':
+                print("Exiting...")
+                exit(0)
+            
+            idx = int(selection)
+            
+            if idx == 0:
+                print(f"\n✓ Selected: ALL USERS (No campus filtering)")
+                return None  # None means no filtering
+            elif 1 <= idx <= len(campuses):
+                selected_campus = campuses[idx - 1]
+                campus_id = selected_campus.get('id')
+                campus_name = selected_campus.get('name')
+                print(f"\n✓ Selected: {campus_name} (ID: {campus_id})")
+                return campus_id
+            else:
+                print(f"Please enter a number between 0 and {len(campuses)}")
+        except ValueError:
+            print("Please enter a valid number")
+        except KeyboardInterrupt:
+            print("\nExiting...")
+            exit(0)
 
 
 def get_python_project_ids(client: API42Client, cursus_id: int = 21) -> List[int]:
@@ -98,21 +156,31 @@ def get_python_project_ids(client: API42Client, cursus_id: int = 21) -> List[int
     return python_project_ids
 
 
-def fetch_users_by_projects(client: API42Client, project_ids: List[int]) -> Dict[int, List[Dict]]:
+def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_id: int = None) -> Dict[int, List[Dict]]:
     """
     Fetch users who worked on Python projects (project-based approach)
     
-    Gets users directly from project endpoints without campus filtering.
+    Optionally filters by campus if campus_id is provided.
     
     Args:
         client: API client instance
         project_ids: List of Python project IDs
+        campus_id: Optional campus ID to filter users by
         
     Returns:
         Dictionary mapping user_id -> list of their Python projects
     """
     print(f"\nFetching users for {len(project_ids)} Python projects...")
-    print("(Getting users directly from project endpoints)")
+    if campus_id:
+        print(f"(Will filter to campus ID: {campus_id})")
+        # Get campus users to filter by
+        print(f"Fetching campus users for filtering...")
+        cursus_users = client.get_campus_users(campus_id, MAIN_CURSUS_ID)
+        campus_user_ids = set(cu.get('user', {}).get('id') for cu in cursus_users if cu.get('user', {}).get('id'))
+        print(f"✓ Found {len(campus_user_ids)} users in campus {campus_id}")
+    else:
+        print("(No campus filtering - analyzing all users globally)")
+        campus_user_ids = None
     
     # Map to store projects by user
     users_projects_map = {}
@@ -125,12 +193,16 @@ def fetch_users_by_projects(client: API42Client, project_ids: List[int]) -> Dict
             project_users = client.get_project_users(project_id)
             total_api_calls += 1
             
-            # Add all users who worked on this project
+            # Add users who worked on this project (with optional campus filtering)
             for project_user in project_users:
                 user = project_user.get('user', {})
                 user_id = user.get('id')
                 
                 if user_id:
+                    # Apply campus filter if provided
+                    if campus_user_ids is not None and user_id not in campus_user_ids:
+                        continue
+                    
                     if user_id not in users_projects_map:
                         users_projects_map[user_id] = []
                     users_projects_map[user_id].append(project_user)
@@ -448,9 +520,16 @@ def main():
         if cache_stats:
             print(f"Cache: {cache_stats['total_files']} files, {cache_stats['total_size_mb']} MB")
         
-        # SIMPLIFIED APPROACH: Get users directly from projects
+        # Let user select campus
+        selected_campus_id = select_campus(client)
+        
+        # PROJECT-BASED USER FETCHING
         print("\n" + "=" * 60)
         print("PROJECT-BASED USER FETCHING")
+        if selected_campus_id:
+            print(f"(Filtering to campus ID: {selected_campus_id})")
+        else:
+            print("(No campus filtering - analyzing all users)")
         print("=" * 60)
         
         # Step 1: Get Python project IDs
@@ -460,8 +539,8 @@ def main():
             print("\n✗ No Python projects found in this cursus")
             return
         
-        # Step 2: Fetch users directly from each Python project
-        projects_map = fetch_users_by_projects(client, python_project_ids)
+        # Step 2: Fetch users from each Python project (with optional campus filtering)
+        projects_map = fetch_users_by_projects(client, python_project_ids, selected_campus_id)
         
         if not projects_map:
             print("\n✗ No users found working on Python projects")

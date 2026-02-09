@@ -7,6 +7,7 @@ A Python application that uses the 42 API to gather and analyze time spent on Py
 ## Features
 
 - 🔐 OAuth2 authentication with 42 API
+- 🏫 **Campus selection** - Choose specific campus or analyze all users globally
 - 🚀 **Direct project-based fetching** - Gets users from `/v2/projects/:project_id/projects_users` endpoint
 - 📊 Gathers Python module start and end dates
 - ⏱️ Collects student log time data
@@ -16,8 +17,8 @@ A Python application that uses the 42 API to gather and analyze time spent on Py
 - 🎯 Filter for new common core Python modules only
 - 📉 **Detailed statistics** - Individual module times and averages
 - 📊 **Static visualizations** - Generate PNG charts and graphs
-- 🌐 **NEW: Interactive Web Dashboard** - Real-time filtering, multiple charts, comprehensive views
-- ⚡ Simple, efficient workflow - no campus selection needed
+- 🌐 **Interactive Web Dashboard** - Real-time filtering, multiple charts, comprehensive views
+- ⚡ Efficient workflow with optional campus filtering
 
 ## Prerequisites
 
@@ -78,27 +79,41 @@ Run the application:
 python main.py
 ```
 
+### Campus Selection
+
+When you run the application, you'll be prompted to select a campus:
+- **Enter 0**: Analyze ALL users globally (no campus filtering)
+- **Enter campus number**: Analyze only users from that specific campus
+
+Campus filtering reduces the number of users to process, which:
+- Prevents API rate limit errors
+- Focuses analysis on specific campus
+- Speeds up processing
+
 ### How It Works
 
 The application will:
 1. Authenticate with the 42 API
-2. Identify Python projects from the cursus (e.g., Python Module 00, Django modules)
-3. For each Python project, fetch ALL users who worked on it using `/v2/projects/{id}/projects_users`
-4. Fetch location (log time) data for users who have Python projects
-5. Calculate time spent on each Python module
-6. **Generate detailed statistics** including:
+2. **Let you select a campus** (or choose to analyze all users)
+3. Identify Python projects from the cursus (e.g., Python Module 00, Django modules)
+4. For each Python project, fetch users who worked on it using `/v2/projects/{id}/projects_users`
+5. **Filter users by campus** (if a specific campus was selected)
+6. Fetch location (log time) data for users who have Python projects
+7. Calculate time spent on each Python module
+8. **Generate detailed statistics** including:
    - Individual user breakdown with per-module times
    - Module averages across all users
    - Overall statistics
-7. **Create visualizations** (charts and graphs saved as PNG files)
-8. Save results to JSON file with timestamp
+9. **Create visualizations** (charts and graphs saved as PNG files)
+10. **Generate interactive dashboard** (HTML file)
+11. Save results to JSON file with timestamp
 
-### Simplified Approach
+### Efficient Project-Based Approach
 
-This application uses a direct, efficient approach:
-- **No campus selection needed** - Gets users directly from project endpoints
-- Gets ALL users who worked on Python projects (regardless of campus)
-- Much simpler and faster than filtering by campus first
+This application uses an efficient approach:
+- Fetches users directly from project endpoints
+- Optional campus filtering to reduce API calls
+- Much faster than fetching all projects for each user
 
 ## Output
 
