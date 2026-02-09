@@ -163,21 +163,46 @@ class API42Client:
         """
         Get all users from a specific campus and cursus
         
+        Uses the direct campus users endpoint for better efficiency.
+        Returns users filtered by cursus_id with their cursus information.
+        
         Args:
             campus_id: Campus ID (e.g., Havre campus)
             cursus_id: Cursus ID (21 is typically the main 42 cursus)
             
         Returns:
-            List of user dictionaries
+            List of cursus_user-like dictionaries (user with cursus info)
         """
-        print(f"Fetching users from campus {campus_id}...")
-        params = {
-            "filter[campus_id]": campus_id,
-            "filter[cursus_id]": cursus_id,
-        }
-        users = self._make_paginated_request("/v2/cursus_users", params)
-        print(f"✓ Found {len(users)} users")
-        return users
+        print(f"Fetching users from campus {campus_id} (cursus {cursus_id})...")
+        
+        # Use the direct campus users endpoint (more efficient)
+        endpoint = f"/v2/campus/{campus_id}/users"
+        users = self._make_paginated_request(endpoint)
+        
+        # Filter users by cursus and extract cursus-specific data
+        cursus_users = []
+        for user in users:
+            # Find the matching cursus in the user's cursus_users array
+            user_cursus_data = None
+            for cu in user.get('cursus_users', []):
+                if cu.get('cursus_id') == cursus_id:
+                    user_cursus_data = cu
+                    break
+            
+            # Only include users who are in the specified cursus
+            if user_cursus_data:
+                # Create a cursus_user-like structure for compatibility
+                cursus_user = {
+                    'user': user,
+                    'level': user_cursus_data.get('level', 0),
+                    'cursus_id': cursus_id,
+                    'begin_at': user_cursus_data.get('begin_at'),
+                    'end_at': user_cursus_data.get('end_at'),
+                }
+                cursus_users.append(cursus_user)
+        
+        print(f"✓ Found {len(cursus_users)} users in cursus {cursus_id}")
+        return cursus_users
     
     def get_cursus_projects(self, cursus_id: int = 21) -> List[Dict]:
         """
