@@ -213,19 +213,6 @@ class API42Client:
         endpoint = f"/v2/users/{user_id}/locations"
         return self._make_paginated_request(endpoint, params)
     
-    def get_project_details(self, project_id: int) -> Optional[Dict]:
-        """
-        Get details for a specific project
-        
-        Args:
-            project_id: Project ID
-            
-        Returns:
-            Project details dictionary
-        """
-        endpoint = f"/v2/projects/{project_id}"
-        return self._make_request(endpoint)
-    
     def get_project_users(self, project_id: int) -> List[Dict]:
         """
         Get all users who have worked on a specific project
@@ -268,35 +255,7 @@ class API42Client:
         
         return None
     
-    def get_all_projects_users(self, user_ids: Optional[List[int]] = None) -> List[Dict]:
-        """
-        Get all projects_users data globally or for specific users
-        
-        This is more efficient than fetching per user when dealing with many users.
-        
-        Args:
-            user_ids: Optional list of user IDs to filter by (filters in code after fetch)
-            
-        Returns:
-            List of projects_users dictionaries
-        """
-        print("Fetching all projects_users data...")
-        # Fetch all projects_users without user filter
-        # The API doesn't support filtering by multiple user IDs, 
-        # so we fetch broadly and filter in code
-        all_projects = self._make_paginated_request("/v2/projects_users")
-        
-        # Filter by user IDs if provided
-        if user_ids:
-            user_id_set = set(user_ids)
-            all_projects = [
-                p for p in all_projects 
-                if p.get('user', {}).get('id') in user_id_set
-            ]
-        
-        print(f"✓ Found {len(all_projects)} projects_users entries")
-        return all_projects
-    
+
     def get_projects_users_by_user_map(self, user_ids: List[int]) -> Dict[int, List[Dict]]:
         """
         Get projects for multiple users and return as a map

@@ -198,6 +198,7 @@ PythonTime/
 ├── main.py                # Main application entry point (optimized)
 ├── api_client.py          # 42 API client with caching support
 ├── cache_manager.py       # Cache management system
+├── cache_util.py          # Cache management utility CLI
 ├── data_processor.py      # Data processing and analysis logic
 ├── test_app.py            # Tests for data processing
 ├── test_cache.py          # Tests for caching system
@@ -220,7 +221,28 @@ The application includes basic rate limiting (0.1s delay between paginated reque
 
 Cached data is stored in the `.cache/` directory (automatically created, ignored by git).
 
-### Clear Cache
+### Cache Management Utility
+
+Use the `cache_util.py` utility to manage cache:
+
+```bash
+# Show cache statistics
+python cache_util.py stats
+
+# Clear all cached data
+python cache_util.py clear
+
+# Validate cache integrity
+python cache_util.py validate
+
+# Test API connection
+python cache_util.py test
+
+# Show help
+python cache_util.py help
+```
+
+### Clear Cache Programmatically
 
 To force fresh data from the API, you can clear the cache:
 
@@ -232,12 +254,6 @@ import os
 load_dotenv()
 client = API42Client(os.getenv('CLIENT_ID'), os.getenv('CLIENT_SECRET'))
 client.clear_cache()
-```
-
-Or manually delete the `.cache/` directory:
-
-```bash
-rm -rf .cache/
 ```
 
 ### Disable Caching
