@@ -223,7 +223,7 @@ def main():
         students = get_all_students(cursus_users)
         
         # Apply MAX_STUDENTS limit if configured
-        if MAX_STUDENTS and len(students) > MAX_STUDENTS:
+        if MAX_STUDENTS is not None and len(students) > MAX_STUDENTS:
             print(f"Limiting to first {MAX_STUDENTS} students (MAX_STUDENTS setting)")
             students = students[:MAX_STUDENTS]
         
