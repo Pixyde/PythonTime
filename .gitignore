@@ -43,9 +43,13 @@ Thumbs.db
 
 # Output files
 *.csv
+*.png
 python_time_analysis_*.json
 demo_output.json
 output/
+
+# Generated dashboards
+*_dashboard.html
 
 # Cache directory
 .cache/
