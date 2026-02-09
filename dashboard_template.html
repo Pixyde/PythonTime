@@ -590,10 +590,10 @@
                     </div>
                 </div>
                 <div class="quick-filters">
-                    <button class="quick-filter-btn" onclick="applyQuickFilter('all')">All Data</button>
-                    <button class="quick-filter-btn" onclick="applyQuickFilter('active')">Active Users (>10h)</button>
-                    <button class="quick-filter-btn" onclick="applyQuickFilter('beginners')">Beginners (<5h)</button>
-                    <button class="quick-filter-btn" onclick="applyQuickFilter('completed')">Completed Projects</button>
+                    <button class="quick-filter-btn" onclick="applyQuickFilter('all', event)">All Data</button>
+                    <button class="quick-filter-btn" onclick="applyQuickFilter('active', event)">Active Users (>10h)</button>
+                    <button class="quick-filter-btn" onclick="applyQuickFilter('beginners', event)">Beginners (<5h)</button>
+                    <button class="quick-filter-btn" onclick="applyQuickFilter('completed', event)">Completed Projects</button>
                 </div>
             </div>
         </div>
@@ -704,7 +704,7 @@
             monochrome: ['#212529', '#495057', '#6c757d', '#adb5bd', '#ced4da', '#dee2e6', '#e9ecef', '#f8f9fa', '#ffffff', '#000000']
         };
 
-        let rawData = {{ data|tojson }};
+        let rawData = {{ data|tojson|safe }};
         let filteredData = [...rawData];
         let charts = {};
         let chartConfigs = {};
@@ -762,7 +762,7 @@
             updateStats();
         }
 
-        function applyQuickFilter(type) {
+        function applyQuickFilter(type, event) {
             document.querySelectorAll('.quick-filter-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
 
@@ -1170,14 +1170,15 @@
 
                 case 'difficultyScatter':
                     const scatterData = filteredData.map(d => {
-                        const completionRate = d.status === 'Completed' ? 100 : 
-                            (d.completed_files / Math.max(d.total_files, 1) * 100);
+                        // Calculate completion rate based on status
+                        const completionRate = d.status === 'finished' ? 100 : 
+                            d.status === 'in_progress' ? 50 : 0;
                         return {
-                            x: d.total_hours,
+                            x: d.total_hours || 0,
                             y: completionRate,
-                            label: `${d.username} - ${d.module}`
+                            label: `${d.username} - ${d.projects?.length || 0} projects`
                         };
-                    });
+                    }).filter(d => d.x > 0); // Only show users with tracked time
                     return {
                         datasets: [{
                             label: 'Users',
@@ -1259,7 +1260,10 @@
         }
 
         function loadConfiguration() {
-            const config = JSON.parse(localStorage.getItem('dashboardConfig'));
+            const configStr = localStorage.getItem('dashboardConfig');
+            if (!configStr) return;
+            
+            const config = JSON.parse(configStr);
             if (config) {
                 if (config.theme) {
                     document.getElementById('themeSelect').value = config.theme;
@@ -1317,7 +1321,7 @@
                     case '?':
                         openHelp();
                         break;
-                    case 'escape':
+                    case 'Escape':
                         closeHelp();
                         closeGlobalSettings();
                         break;

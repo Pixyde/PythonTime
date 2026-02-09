@@ -136,7 +136,8 @@ def get_python_project_ids(client: API42Client, cursus_id: int = 21) -> List[int
     print("\nIdentifying Python projects...")
     projects = client.get_cursus_projects(cursus_id)
     
-    python_keywords = ['python module']
+    # Match Python Module 00-10 specifically, with flexible patterns
+    python_keywords = ['python module', 'python-module', 'py-module']
     python_project_ids = []
     
     for project in projects:
@@ -215,7 +216,8 @@ def get_all_project_types(client: API42Client, cursus_id: int = 21) -> Dict[str,
         'Other': []
     }
     
-    python_keywords = ['python module']
+    # Match Python Module 00-10 specifically, with flexible patterns
+    python_keywords = ['python module', 'python-module', 'py-module']
     cpp_keywords = ['c++', 'cpp', 'piscine c', 'libft', 'ft_printf', 'get_next_line',
                     'philosophers', 'minishell', 'cub3d', 'push_swap', 'cpp module',
                     'webserv', 'ft_irc', 'ft_containers']
