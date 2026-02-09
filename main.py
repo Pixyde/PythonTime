@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from api_client import API42Client
 from data_processor import DataProcessor
+from dashboard_generator import DashboardGenerator
 
 
 # Campus IDs (you may need to adjust these)
@@ -567,6 +568,18 @@ def main():
         if results:
             stats = calculate_module_statistics(results)
             display_statistics(results, stats)
+            
+            # Generate interactive dashboard
+            try:
+                print("\n📊 Generating interactive dashboard...")
+                generator = DashboardGenerator(results, stats)
+                dashboard_file = generator.generate(output_file)
+                print(f"  ✓ Dashboard saved to: {dashboard_file}")
+                print(f"  ✓ Open in browser to view interactive visualizations!")
+            except Exception as e:
+                print(f"\n⚠️  Could not generate dashboard: {e}")
+                import traceback
+                traceback.print_exc()
         
         # Show cache stats again
         cache_stats = client.get_cache_stats()
