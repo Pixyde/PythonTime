@@ -226,6 +226,48 @@ class API42Client:
         endpoint = f"/v2/projects/{project_id}"
         return self._make_request(endpoint)
     
+    def get_project_users(self, project_id: int) -> List[Dict]:
+        """
+        Get all users who have worked on a specific project
+        
+        This is more efficient than fetching all projects for every user
+        when you want to know which users completed a specific project.
+        
+        Args:
+            project_id: Project ID
+            
+        Returns:
+            List of users_projects dictionaries for users who worked on this project
+        """
+        print(f"Fetching users for project {project_id}...")
+        endpoint = f"/v2/projects/{project_id}/projects_users"
+        users = self._make_paginated_request(endpoint)
+        print(f"✓ Found {len(users)} users who worked on this project")
+        return users
+    
+    def has_user_completed_project(self, user_id: int, project_id: int) -> Optional[Dict]:
+        """
+        Check if a specific user has completed a specific project
+        
+        This uses the efficient project users endpoint to avoid fetching
+        all projects for all users.
+        
+        Args:
+            user_id: User ID
+            project_id: Project ID
+            
+        Returns:
+            Project user entry if user worked on the project, None otherwise
+        """
+        project_users = self.get_project_users(project_id)
+        
+        # Find the user in the project users list
+        for project_user in project_users:
+            if project_user.get('user', {}).get('id') == user_id:
+                return project_user
+        
+        return None
+    
     def get_all_projects_users(self, user_ids: Optional[List[int]] = None) -> List[Dict]:
         """
         Get all projects_users data globally or for specific users

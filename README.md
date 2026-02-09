@@ -137,6 +137,41 @@ The application includes an intelligent caching system:
 **First run**: Makes all necessary API calls and caches responses
 **Subsequent runs**: Uses cached data (within 24 hours), only fetching what's missing or expired
 
+### Efficient Project User Queries
+
+The API client now supports efficient queries to check which users completed a specific project:
+
+- **`get_project_users(project_id)`**: Get all users who worked on a specific project
+  - Uses `GET /v2/projects/:project_id/projects_users` endpoint
+  - Returns list of users with their project completion status
+  - Much more efficient than fetching all projects for every user
+
+- **`has_user_completed_project(user_id, project_id)`**: Check if a specific user completed a project
+  - Returns the project details if user worked on it, None otherwise
+  - Useful for quick checks without parsing all user projects
+
+**Example usage:**
+```python
+from api_client import API42Client
+
+client = API42Client(client_id, client_secret)
+client.authenticate()
+
+# Get all users who worked on Python Module 00 (project ID: 1255)
+users = client.get_project_users(1255)
+
+# Filter to only validated projects
+completed_users = [u for u in users if u.get('validated?', False)]
+print(f"{len(completed_users)} users completed this project")
+
+# Check if a specific user completed the project
+user_project = client.has_user_completed_project(12345, 1255)
+if user_project:
+    print(f"User completed with mark: {user_project['final_mark']}")
+```
+
+**Efficiency improvement**: When checking for a single project across many users, this approach is ~200x more efficient than the traditional method of fetching all projects for each user.
+
 ### Time Calculation
 
 The application calculates time spent on Python modules by:
@@ -160,16 +195,17 @@ The application calculates time spent on Python modules by:
 
 ```
 PythonTime/
-├── main.py              # Main application entry point (optimized)
-├── api_client.py        # 42 API client with caching support
-├── cache_manager.py     # Cache management system
-├── data_processor.py    # Data processing and analysis logic
-├── test_app.py          # Tests for data processing
-├── test_cache.py        # Tests for caching system
-├── requirements.txt     # Python dependencies
-├── .env.example         # Environment variables template
-├── .gitignore          # Git ignore rules (includes .cache/)
-└── README.md           # This file
+├── main.py                # Main application entry point (optimized)
+├── api_client.py          # 42 API client with caching support
+├── cache_manager.py       # Cache management system
+├── data_processor.py      # Data processing and analysis logic
+├── test_app.py            # Tests for data processing
+├── test_cache.py          # Tests for caching system
+├── test_project_users.py  # Tests for project users endpoint
+├── requirements.txt       # Python dependencies
+├── .env.example           # Environment variables template
+├── .gitignore            # Git ignore rules (includes .cache/)
+└── README.md             # This file
 ```
 
 ## API Rate Limiting
