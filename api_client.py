@@ -14,6 +14,7 @@ class API42Client:
     """Client for interacting with the 42 API"""
     
     BASE_URL = "https://api.intra.42.fr"
+    TOKEN_REFRESH_BUFFER_SECONDS = 60  # Refresh token 60 seconds before expiry
     
     def __init__(self, client_id: str, client_secret: str):
         """
@@ -59,7 +60,7 @@ class API42Client:
     
     def _ensure_authenticated(self):
         """Ensure we have a valid access token"""
-        if not self.access_token or time.time() >= self.token_expires_at - 60:
+        if not self.access_token or time.time() >= self.token_expires_at - self.TOKEN_REFRESH_BUFFER_SECONDS:
             self.authenticate()
     
     def _make_request(self, endpoint: str, params: Optional[Dict] = None) -> Optional[Dict]:

@@ -43,5 +43,6 @@ Thumbs.db
 
 # Output files
 *.csv
-*.json
+python_time_analysis_*.json
+demo_output.json
 output/

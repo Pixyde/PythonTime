@@ -4,7 +4,7 @@ Processes and analyzes data from the 42 API
 """
 
 from typing import Dict, List, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 
 
@@ -68,7 +68,7 @@ class DataProcessor:
         
         # If no end date, assume project is ongoing (use current date)
         if not end_date and start_date:
-            end_date = datetime.now()
+            end_date = datetime.now(timezone.utc)
         
         return start_date, end_date
     
@@ -93,7 +93,7 @@ class DataProcessor:
         
         # If still logged in (no end_at), use current time
         if not end_at:
-            end = datetime.now()
+            end = datetime.now(timezone.utc)
         else:
             end = datetime.fromisoformat(end_at.replace('Z', '+00:00'))
         
@@ -129,7 +129,7 @@ class DataProcessor:
             log_start = datetime.fromisoformat(begin_at.replace('Z', '+00:00'))
             
             if not end_at:
-                log_end = datetime.now()
+                log_end = datetime.now(timezone.utc)
             else:
                 log_end = datetime.fromisoformat(end_at.replace('Z', '+00:00'))
             

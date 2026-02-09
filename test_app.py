@@ -3,7 +3,7 @@ Test script for the Python Time Tracker
 Tests basic functionality without requiring API credentials
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from data_processor import DataProcessor
 
 
@@ -67,7 +67,6 @@ def test_match_logtimes_to_project():
     """Test matching log times to project timeframe"""
     print("\nTesting match_logtimes_to_project...")
     
-    from datetime import timezone
     project_start = datetime(2023, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
     project_end = datetime(2023, 1, 20, 18, 0, 0, tzinfo=timezone.utc)
     

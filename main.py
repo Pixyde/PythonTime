@@ -40,32 +40,36 @@ def load_config():
     return client_id, client_secret
 
 
-def filter_promotion_4_students(cursus_users: List[Dict]) -> List[Dict]:
+def get_all_students(cursus_users: List[Dict]) -> List[Dict]:
     """
-    Filter students to only include those in promotion 4
+    Get all students from the cursus users list
+    
+    Note: This currently returns all students. To filter for promotion 4 specifically,
+    you would need to implement filtering based on your campus's promotion criteria
+    (e.g., begin_at date, level range, or specific cursus fields).
     
     Args:
         cursus_users: List of cursus user dictionaries
         
     Returns:
-        List of promotion 4 students
+        List of all students
     """
-    promotion_4_students = []
+    students = []
     
     for cursus_user in cursus_users:
-        # The exact way to determine promotion may vary
+        # The exact way to determine promotion may vary by campus
         # Common approaches:
-        # 1. Check cursus level/grade
-        # 2. Check begin_at date
+        # 1. Check cursus level/grade range
+        # 2. Check begin_at date range
         # 3. Check a specific field in the cursus_user data
         
-        # For now, we'll include all students and let the user filter if needed
-        # You may need to adjust this logic based on how promotion is determined
+        # For now, we include all students
+        # Adjust this logic based on your campus's promotion definition
         user = cursus_user.get('user', {})
         if user:
-            promotion_4_students.append(cursus_user)
+            students.append(cursus_user)
     
-    return promotion_4_students
+    return students
 
 
 def process_student(client: API42Client, cursus_user: Dict) -> Dict:
@@ -148,15 +152,15 @@ def main():
             print("  - No students in this cursus")
             return
         
-        # Filter to promotion 4
-        print(f"Filtering to promotion 4 students...")
-        promotion_4 = filter_promotion_4_students(cursus_users)
-        print(f"Found {len(promotion_4)} promotion 4 students")
+        # Get all students (adjust filter logic as needed for promotion 4)
+        print(f"Filtering students...")
+        students = get_all_students(cursus_users)
+        print(f"Found {len(students)} students to analyze")
         
         # Process each student
         results = []
-        for i, cursus_user in enumerate(promotion_4, 1):
-            print(f"\n[{i}/{len(promotion_4)}] ", end="")
+        for i, cursus_user in enumerate(students, 1):
+            print(f"\n[{i}/{len(students)}] ", end="")
             student_data = process_student(client, cursus_user)
             if student_data:
                 results.append(student_data)
