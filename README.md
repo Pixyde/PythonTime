@@ -1,24 +1,22 @@
 # 42 API Python Time Tracker
 
-A Python application that uses the 42 API to gather and analyze time spent on Python modules by students across 42 campuses.
+A Python application that uses the 42 API to gather and analyze time spent on Python modules by students.
 
-**Now optimized with caching, bulk data fetching, interactive campus selection, detailed statistics, and data visualizations!**
+**Simplified and optimized to fetch users directly from project endpoints!**
 
 ## Features
 
 - 🔐 OAuth2 authentication with 42 API
-- 🏫 **NEW: Interactive campus selection** - Choose from all available campuses or view all campuses comparison
-- 👥 Fetches student data from specific campus and cursus
+- 🚀 **Direct project-based fetching** - Gets users from `/v2/projects/:project_id/projects_users` endpoint
 - 📊 Gathers Python module start and end dates
 - ⏱️ Collects student log time data
 - 📈 Calculates approximate time spent on each Python module
 - 💾 Exports results to JSON format
-- 🚀 Optimized project-based data fetching (98% fewer API calls!)
 - 💽 Intelligent caching system to avoid redundant API calls
 - 🎯 Filter for new common core Python modules only
-- 📉 **NEW: Detailed statistics** - Individual module times and averages
-- 📊 **NEW: Data visualization** - Generate charts and graphs
-- 🌍 **NEW: All campus comparison** - View average statistics across all campuses
+- 📉 **Detailed statistics** - Individual module times and averages
+- 📊 **Data visualization** - Generate charts and graphs
+- ⚡ Simple, efficient workflow - no campus selection needed
 
 ## Prerequisites
 
@@ -79,54 +77,39 @@ Run the application:
 python main.py
 ```
 
-### Interactive Campus Selection
+### How It Works
 
-When you run the application, you'll be prompted to select a campus:
-
-1. **Select a specific campus** - Enter the number of the campus you want to analyze
-2. **Select "0" for ALL CAMPUSES** - View average statistics and comparison across all campuses
-
-The application will then:
+The application will:
 1. Authenticate with the 42 API
-2. Fetch students from the selected campus(es)
-3. Identify Python projects from the cursus
-4. For each Python project, fetch users who worked on it (project-based approach - very efficient!)
-5. Fetch location (log time) data for students with Python projects
-6. Calculate time spent on each Python module
-7. **Generate detailed statistics** including:
-   - Individual student breakdown with per-module times
-   - Module averages across all students
+2. Identify Python projects from the cursus (e.g., Python Module 00, Django modules)
+3. For each Python project, fetch ALL users who worked on it using `/v2/projects/{id}/projects_users`
+4. Fetch location (log time) data for users who have Python projects
+5. Calculate time spent on each Python module
+6. **Generate detailed statistics** including:
+   - Individual user breakdown with per-module times
+   - Module averages across all users
    - Overall statistics
-8. **Create visualizations** (charts and graphs saved as PNG files)
-9. Save results to JSON files with timestamp
+7. **Create visualizations** (charts and graphs saved as PNG files)
+8. Save results to JSON file with timestamp
 
-### Campus Comparison Mode
+### Simplified Approach
 
-When you select option "0" (ALL CAMPUSES), the application will:
-- Process all available campuses
-- Calculate average Python hours per student for each campus
-- Show module-level statistics across all campuses
-- Display a ranking of campuses by average hours
-- Save detailed comparison data to `campus_comparison_YYYYMMDD_HHMMSS.json`
+This application uses a direct, efficient approach:
+- **No campus selection needed** - Gets users directly from project endpoints
+- Gets ALL users who worked on Python projects (regardless of campus)
+- Much simpler and faster than filtering by campus first
 
 ## Output
 
-### For Single Campus
-
 The application generates:
 
-1. **JSON data file**: `python_time_analysis_YYYYMMDD_HHMMSS.json` with detailed student data
+1. **JSON data file**: `python_time_analysis_YYYYMMDD_HHMMSS.json` with detailed user data
 2. **Visualization files**:
    - `module_average_times.png` - Bar chart of average time per module
-   - `top_students.png` - Bar chart of top 15 students by total hours
+   - `top_students.png` - Bar chart of top 15 users by total hours
    - `time_distribution.png` - Histogram of time distribution
 
-### For All Campuses Comparison
-
-The application generates:
-1. **JSON comparison file**: `campus_comparison_YYYYMMDD_HHMMSS.json` with campus statistics
-
-### JSON Structure (Single Campus)
+### JSON Structure
 
 ```json
 [
@@ -134,7 +117,7 @@ The application generates:
     "user_id": 12345,
     "login": "student-login",
     "email": "student@example.com",
-    "cursus_level": 5.42,
+    "cursus_level": 0,
     "python_projects": [
       {
         "project_name": "Python - Django",
@@ -155,34 +138,35 @@ The application generates:
 ### Statistics Display
 
 The application displays:
-- **Overall Statistics**: Total students, total hours, average per student
-- **Module Statistics**: For each Python module, shows number of students, average time, and total time
-- **Individual Student Breakdown**: Top students with their module-by-module time breakdown
-- **Campus Comparison** (all campus mode): Rankings and averages across campuses
+- **Overall Statistics**: Total users, total hours, average per user
+- **Module Statistics**: For each Python module, shows number of users, average time, and total time
+- **Individual User Breakdown**: Top users with their module-by-module time breakdown
 
 ## How It Works
 
-### Optimization Strategy
+### Direct Project-Based Approach
 
-The application uses a **project-based fetching approach** to drastically minimize API calls:
+The application uses a **simplified project-based fetching approach**:
 
-1. **Fetch campus users**: Uses `/v2/cursus_users` endpoint with campus and cursus filters to get users with their cursus data (1 API call)
-2. **Identify Python projects**: Fetches all projects from the cursus and filters for Python-related ones (1 API call)
-3. **Fetch users per project**: For each Python project, fetch users who worked on it (~10-20 API calls)
-4. **Bulk fetch locations**: Only fetch location data for users who have Python projects (optimized count)
-5. **Process in memory**: All data processing happens locally without additional API calls
+1. **Identify Python projects**: Fetches all projects from the cursus and filters for Python-related ones (1 API call)
+2. **Fetch users per project**: For each Python project, fetch ALL users who worked on it using `/v2/projects/{id}/projects_users` (~10-20 API calls)
+3. **Bulk fetch locations**: Only fetch location data for users who have Python projects
+4. **Process in memory**: All data processing happens locally without additional API calls
 
-**Key Innovation**: Instead of fetching ALL projects for ALL users (which causes rate limiting with 1000+ students), we fetch users for each Python project. This reduces API calls from ~1000+ to ~10-20!
+**Key Innovation**: Gets users directly from project endpoints without needing campus filtering. Simple, direct, and efficient!
 
 ### API Call Comparison
 
 **Old Approach (per-user)**:
-- 1044 students × 1 API call = **1044 API calls** → Rate limit errors!
+- Fetch campus users first
+- Then fetch projects for each user
+- 1000+ API calls → Rate limit errors!
 
 **New Approach (per-project)**:
+- Skip campus fetching entirely
 - ~15 Python projects × 1 API call = **~15 API calls** → No rate limits!
 
-**Result**: ~98% reduction in API calls!
+**Result**: Direct and efficient!
 
 ### API Call Optimization Options
 

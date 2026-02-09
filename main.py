@@ -58,98 +58,8 @@ def load_config():
     return client_id, client_secret
 
 
-def select_campus(client: API42Client) -> int:
-    """
-    Let user select a campus from the available list
-    
-    Args:
-        client: API client instance
-        
-    Returns:
-        Selected campus ID, or 0 for "all campuses"
-    """
-    print("\n" + "=" * 60)
-    print("CAMPUS SELECTION")
-    print("=" * 60)
-    
-    campuses = client.get_campuses()
-    
-    if not campuses:
-        print("No campuses found. Using default (Le Havre, ID: 14)")
-        return 14
-    
-    # Sort campuses by name for easier navigation
-    campuses.sort(key=lambda c: c.get('name', ''))
-    
-    print("\nAvailable campuses:")
-    print("-" * 60)
-    print(f"  {'0':>3}. {'ALL CAMPUSES (Average Statistics)':<50}")
-    print("-" * 60)
-    for i, campus in enumerate(campuses, 1):
-        name = campus.get('name', 'Unknown')
-        city = campus.get('city', 'Unknown')
-        country = campus.get('country', 'Unknown')
-        campus_id = campus.get('id', 0)
-        print(f"  {i:3d}. {name:30s} ({city}, {country}) [ID: {campus_id}]")
-    
-    print("-" * 60)
-    
-    # Get user selection
-    while True:
-        try:
-            selection = input("\nEnter campus number (or 'q' to quit): ").strip()
-            if selection.lower() == 'q':
-                print("Exiting...")
-                exit(0)
-            
-            idx = int(selection)
-            
-            if idx == 0:
-                print(f"\n✓ Selected: ALL CAMPUSES (will show average statistics per campus)")
-                return 0  # Special value for "all campuses"
-            elif 1 <= idx <= len(campuses):
-                selected_campus = campuses[idx - 1]
-                campus_id = selected_campus.get('id')
-                campus_name = selected_campus.get('name')
-                print(f"\n✓ Selected: {campus_name} (ID: {campus_id})")
-                return campus_id
-            else:
-                print(f"Please enter a number between 0 and {len(campuses)}")
-        except ValueError:
-            print("Please enter a valid number")
-        except KeyboardInterrupt:
-            print("\nExiting...")
-            exit(0)
 
 
-def get_all_students(cursus_users: List[Dict]) -> List[Dict]:
-    """
-    Get all students from the cursus users list
-    
-    Note: This currently returns all students. To filter for promotion 4 specifically,
-    you would need to implement filtering based on your campus's promotion criteria
-    (e.g., begin_at date, level range, or specific cursus fields).
-    
-    Args:
-        cursus_users: List of cursus user dictionaries
-        
-    Returns:
-        List of all students
-    """
-    students = []
-    
-    for cursus_user in cursus_users:
-        # The exact way to determine promotion may vary by campus
-        # Common approaches:
-        # 1. Check cursus level/grade range
-        # 2. Check begin_at date range
-        # 3. Check a specific field in the cursus_user data
-        
-        # For now, we include all students
-        # Adjust this logic based on your campus's promotion definition
-        user = cursus_user.get('user', {})
-        if user:
-            students.append(cursus_user)
     
     return students
 
@@ -234,217 +144,30 @@ def fetch_users_by_projects(client: API42Client, project_ids: List[int]) -> Dict
     return users_projects_map
 
 
-def process_all_campuses(client: API42Client, cursus_id: int = 21):
+def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]], locations_map: Dict[int, List[Dict]], new_common_core_only: bool = False) -> Dict:
     """
-    Process all campuses and calculate average statistics for each
+    Process a user's data using pre-fetched project and location data
     
     Args:
-        client: API client instance
-        cursus_id: Cursus ID to analyze
-    """
-    print("\n" + "=" * 60)
-    print("PROCESSING ALL CAMPUSES - AVERAGE STATISTICS")
-    print("=" * 60)
-    
-    campuses = client.get_campuses()
-    
-    if not campuses:
-        print("No campuses found.")
-        return
-    
-    # Get Python project IDs once (they're the same for all campuses)
-    python_project_ids = get_python_project_ids(client, cursus_id)
-    
-    if not python_project_ids:
-        print("\n✗ No Python projects found in this cursus")
-        return
-    
-    campus_stats = []
-    
-    for campus in campuses:
-        campus_id = campus.get('id')
-        campus_name = campus.get('name', 'Unknown')
-        
-        print(f"\n{'='*60}")
-        print(f"Processing: {campus_name} (ID: {campus_id})")
-        print(f"{'='*60}")
-        
-        try:
-            # Get students from campus
-            cursus_users = client.get_campus_users(campus_id, cursus_id)
-            
-            if not cursus_users:
-                print(f"  No students found in cursus {cursus_id}")
-                continue
-            
-            students = get_all_students(cursus_users)
-            user_ids = [cu.get('user', {}).get('id') for cu in students if cu.get('user', {}).get('id')]
-            campus_user_ids = set(user_ids)
-            
-            print(f"  Found {len(students)} students")
-            
-            # Fetch project data
-            projects_map = fetch_users_by_projects(client, python_project_ids, campus_user_ids)
-            
-            if not projects_map:
-                print(f"  No students with Python projects")
-                continue
-            
-            # Fetch location data
-            python_users = list(projects_map.keys())
-            locations_map = client.get_locations_by_user_map(
-                python_users,
-                begin_at=LOCATION_BEGIN_DATE,
-                end_at=LOCATION_END_DATE
-            )
-            
-            # Process students
-            results = []
-            for user_id in projects_map.keys():
-                cursus_user = next((cu for cu in students if cu.get('user', {}).get('id') == user_id), None)
-                if not cursus_user:
-                    continue
-                
-                student_data = process_student_optimized(
-                    cursus_user,
-                    projects_map,
-                    locations_map,
-                    new_common_core_only=USE_NEW_COMMON_CORE_ONLY
-                )
-                if student_data:
-                    results.append(student_data)
-            
-            # Calculate statistics for this campus
-            if results:
-                stats = calculate_module_statistics(results)
-                
-                campus_stat = {
-                    'campus_id': campus_id,
-                    'campus_name': campus_name,
-                    'total_students': len(students),
-                    'students_with_python': len(results),
-                    'average_hours': stats['overall']['average_hours_per_student'],
-                    'total_hours': stats['overall']['total_hours'],
-                    'modules': stats['modules']
-                }
-                campus_stats.append(campus_stat)
-                
-                print(f"  ✓ Processed {len(results)} students with Python projects")
-                print(f"  ✓ Average hours per student: {stats['overall']['average_hours_per_student']:.2f}")
-            
-        except Exception as e:
-            print(f"  ✗ Error processing campus {campus_name}: {e}")
-            continue
-    
-    # Display campus comparison
-    display_campus_comparison(campus_stats)
-    
-    # Save results
-    output_file = f"campus_comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    with open(output_file, 'w') as f:
-        json.dump(campus_stats, f, indent=2)
-    print(f"\n✓ Campus comparison saved to: {output_file}")
-
-
-def display_campus_comparison(campus_stats: List[Dict]):
-    """
-    Display comparison statistics across all campuses
-    
-    Args:
-        campus_stats: List of campus statistics dictionaries
-    """
-    print("\n" + "=" * 80)
-    print("CAMPUS COMPARISON - AVERAGE STATISTICS")
-    print("=" * 80)
-    
-    if not campus_stats:
-        print("No campus data available")
-        return
-    
-    # Sort by average hours
-    sorted_campuses = sorted(campus_stats, key=lambda x: x['average_hours'], reverse=True)
-    
-    print("\n📊 Campus Rankings by Average Python Hours:")
-    print("-" * 80)
-    print(f"{'Rank':<6} {'Campus':<30} {'Students':<12} {'Avg Hours':<12} {'Total Hours':<12}")
-    print("-" * 80)
-    
-    for rank, campus in enumerate(sorted_campuses, 1):
-        print(f"{rank:<6} {campus['campus_name']:<30} "
-              f"{campus['students_with_python']:<12} "
-              f"{campus['average_hours']:<12.2f} "
-              f"{campus['total_hours']:<12.2f}")
-    
-    print("-" * 80)
-    
-    # Overall statistics
-    total_students = sum(c['students_with_python'] for c in campus_stats)
-    total_hours = sum(c['total_hours'] for c in campus_stats)
-    overall_avg = total_hours / total_students if total_students > 0 else 0
-    
-    print(f"\n📈 Overall Across All Campuses:")
-    print(f"  Total Campuses: {len(campus_stats)}")
-    print(f"  Total Students with Python: {total_students}")
-    print(f"  Total Hours: {total_hours:.2f}")
-    print(f"  Overall Average: {overall_avg:.2f} hours per student")
-    
-    # Module comparison across campuses
-    print(f"\n📚 Module Averages Across Campuses:")
-    print("-" * 80)
-    
-    # Collect all modules
-    all_modules = set()
-    for campus in campus_stats:
-        all_modules.update(campus['modules'].keys())
-    
-    # Calculate average for each module across campuses
-    module_averages = {}
-    for module in all_modules:
-        total_time = 0
-        total_students = 0
-        
-        for campus in campus_stats:
-            if module in campus['modules']:
-                module_data = campus['modules'][module]
-                total_time += module_data['total_time']
-                total_students += module_data['total_students']
-        
-        if total_students > 0:
-            module_averages[module] = total_time / total_students
-    
-    # Display top modules
-    sorted_modules = sorted(module_averages.items(), key=lambda x: x[1], reverse=True)[:10]
-    
-    print(f"{'Module Name':<50} {'Avg Time (all campuses)':<20}")
-    print("-" * 80)
-    for module, avg_time in sorted_modules:
-        print(f"{module:<50} {avg_time:<20.2f}")
-    print("-" * 80)
-
-
-def process_student_optimized(cursus_user: Dict, projects_map: Dict[int, List[Dict]], locations_map: Dict[int, List[Dict]], new_common_core_only: bool = False) -> Dict:
-    """
-    Process a single student's data using pre-fetched data maps
-    
-    Args:
-        cursus_user: Cursus user dictionary
+        user_id: User ID
         projects_map: Map of user_id -> projects list
         locations_map: Map of user_id -> locations list
         new_common_core_only: If True, filter to only new common core modules
         
     Returns:
-        Dictionary with student's Python project analysis
+        Dictionary with user's Python project analysis
     """
-    user = cursus_user.get('user', {})
-    user_id = user.get('id')
-    login = user.get('login', 'unknown')
-    
-    if not user_id:
-        return None
-    
     # Get projects and locations from pre-fetched maps
     projects = projects_map.get(user_id, [])
     locations = locations_map.get(user_id, [])
+    
+    if not projects:
+        return None
+    
+    # Extract user info from first project entry
+    user = projects[0].get('user', {})
+    login = user.get('login', 'unknown')
+    email = user.get('email', '')
     
     # Filter to Python projects (optionally only new common core)
     python_projects = DataProcessor.filter_python_projects(projects, new_common_core_only=new_common_core_only)
@@ -455,60 +178,17 @@ def process_student_optimized(cursus_user: Dict, projects_map: Dict[int, List[Di
     # Analyze time spent on Python projects
     analysis = DataProcessor.analyze_python_time(python_projects, locations)
     
-    return {
-        'user_id': user_id,
-        'login': login,
-        'email': user.get('email', ''),
-        'cursus_level': cursus_user.get('level', 0),
-        'python_projects': analysis,
-        'total_python_hours': sum(p['time_spent_hours'] for p in analysis)
-    }
-
-
-def process_student(client: API42Client, cursus_user: Dict) -> Dict:
-    """
-    Process a single student's data
-    
-    Args:
-        client: API client instance
-        cursus_user: Cursus user dictionary
-        
-    Returns:
-        Dictionary with student's Python project analysis
-    """
-    user = cursus_user.get('user', {})
-    user_id = user.get('id')
-    login = user.get('login', 'unknown')
-    
-    if not user_id:
-        return None
-    
-    print(f"\nProcessing student: {login}")
-    
-    # Get all projects for this user
-    print(f"  Fetching projects...")
-    projects = client.get_user_projects(user_id)
-    
-    # Filter to Python projects (with new common core filtering if enabled)
-    python_projects = DataProcessor.filter_python_projects(projects, new_common_core_only=USE_NEW_COMMON_CORE_ONLY)
-    print(f"  Found {len(python_projects)} Python projects")
-    
-    if not python_projects:
-        return None
-    
-    # Get log time data
-    print(f"  Fetching log time data...")
-    locations = client.get_user_locations(user_id, LOCATION_BEGIN_DATE, LOCATION_END_DATE)
-    print(f"  Found {len(locations)} log entries")
-    
-    # Analyze time spent on Python projects
-    analysis = DataProcessor.analyze_python_time(python_projects, locations)
+    # Try to get cursus level from first project (if available)
+    cursus_level = 0
+    if projects and projects[0].get('cursus_ids'):
+        # cursus_level might not be directly available, set to 0 or extract from user data
+        cursus_level = 0
     
     return {
         'user_id': user_id,
         'login': login,
-        'email': user.get('email', ''),
-        'cursus_level': cursus_user.get('level', 0),
+        'email': email,
+        'cursus_level': cursus_level,
         'python_projects': analysis,
         'total_python_hours': sum(p['time_spent_hours'] for p in analysis)
     }
@@ -731,18 +411,6 @@ def main():
         if cache_stats:
             print(f"Cache: {cache_stats['total_files']} files, {cache_stats['total_size_mb']} MB")
         
-        # Let user select campus (for reference/filtering if needed later)
-        selected_campus_id = select_campus(client)
-        
-        # Check if user selected "all campuses"
-        if selected_campus_id == 0:
-            # Process all campuses and show comparison
-            process_all_campuses(client, MAIN_CURSUS_ID)
-            return
-        
-        print(f"\nNote: Selected campus ID {selected_campus_id} for reference")
-        print("Fetching users directly from Python projects...")
-        
         # SIMPLIFIED APPROACH: Get users directly from projects
         print("\n" + "=" * 60)
         print("PROJECT-BASED USER FETCHING")
@@ -772,35 +440,28 @@ def main():
         )
         
         print("\n" + "=" * 60)
-        print("PROCESSING STUDENTS")
+        print("PROCESSING USERS")
         if USE_NEW_COMMON_CORE_ONLY:
             print("(Filtering for NEW COMMON CORE Python modules only)")
         print("=" * 60)
         
-        # Process only students who have Python projects
+        # Process users who have Python projects
         results = []
-        processed = 0
-        for user_id in projects_map.keys():
-            # Find the cursus_user for this user_id
-            cursus_user = next((cu for cu in students if cu.get('user', {}).get('id') == user_id), None)
-            if not cursus_user:
-                continue
-                
-            processed += 1
-            user = cursus_user.get('user', {})
-            login = user.get('login', 'unknown')
-            
-            student_data = process_student_optimized(
-                cursus_user, 
+        for i, user_id in enumerate(projects_map.keys(), 1):
+            user_data = process_user_from_projects(
+                user_id,
                 projects_map, 
                 locations_map,
                 new_common_core_only=USE_NEW_COMMON_CORE_ONLY
             )
-            if student_data:
-                results.append(student_data)
-                print(f"[{processed}/{len(projects_map)}] {login}: {student_data['total_python_hours']:.2f}h across {len(student_data['python_projects'])} projects")
+            if user_data:
+                results.append(user_data)
+                print(f"[{i}/{len(projects_map)}] {user_data['login']}: {user_data['total_python_hours']:.2f}h across {len(user_data['python_projects'])} projects")
             else:
-                print(f"[{processed}/{len(projects_map)}] {login}: No Python projects (after filtering)")
+                # Get login from projects if available
+                projects = projects_map.get(user_id, [])
+                login = projects[0].get('user', {}).get('login', 'unknown') if projects else 'unknown'
+                print(f"[{i}/{len(projects_map)}] {login}: No Python projects (after filtering)")
         
         # Save results
         output_file = f"python_time_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
@@ -809,8 +470,8 @@ def main():
         
         print("\n" + "=" * 60)
         print(f"Analysis complete!")
-        print(f"Total campus students: {len(students)}")
-        print(f"Students with Python projects: {len(results)}")
+        print(f"Total users processed: {len(projects_map)}")
+        print(f"Users with Python projects: {len(results)}")
         if USE_NEW_COMMON_CORE_ONLY:
             print(f"(Filtered for NEW COMMON CORE modules only)")
         print(f"Results saved to: {output_file}")
