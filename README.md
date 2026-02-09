@@ -120,94 +120,93 @@ This application uses an efficient approach:
 The application generates:
 
 1. **JSON data file**: `python_time_analysis_YYYYMMDD_HHMMSS.json` with detailed user data
-2. **Interactive Dashboard**: `python_time_analysis_YYYYMMDD_HHMMSS_dashboard.html` with comprehensive visualizations
+2. **Comprehensive Interactive Dashboard**: `python_time_analysis_YYYYMMDD_HHMMSS_dashboard.html` with **24 different visualizations**
 
 ### Interactive Dashboard Features
 
-The dashboard is a **modern, interactive analytics platform** with comprehensive visualizations and customization options:
+The dashboard is a **comprehensive analytics platform** with **24 interactive visualizations**, each with **individual sliders and customization options**:
 
-**🎨 Modern Design**:
+![Dashboard Screenshot](https://github.com/user-attachments/assets/6f8f15ae-9c3d-4477-a697-302a151f3fcb)
+
+#### 🎨 Modern Design
 - **Gradient Theme**: Beautiful purple gradient background with clean white panels
-- **Responsive Grid**: Auto-adapts to screen size for mobile, tablet, and desktop
-- **Professional Typography**: Clean, readable fonts with clear hierarchy
-- **Smooth Interactions**: Hover effects and smooth transitions
+- **Tabbed Interface**: 8 categories for easy navigation
+- **Responsive Grid**: Auto-adapts to all screen sizes
+- **Individual Controls**: Each visualization has its own dedicated control panel
 
-**🎛️ Global Filters & Controls**:
-- **Status Filter**: Filter by finished/in_progress/waiting projects
-- **Validated Only**: Toggle to show only validated projects
-- **Hours Threshold Slider**: Minimum hours filter (0-200h)
-- **Score Range Slider**: Minimum score filter (0-100)
-- **Top N Users Slider**: Control how many top users to display (5-50)
-- **Reset Button**: Quick reset to default filter values
+#### 📊 All 24 Visualizations
 
-**📊 KPI Cards** (4 key metrics at a glance):
-- Total Users 👥 - Count of unique users
-- Total Hours ⏱️ - Sum of all time spent
-- Avg Hours/User 📊 - Mean hours per user
-- Completion Rate ✅ - Percentage of finished projects
+**⏰ Time-Based (3 visualizations)**
+1. **Timeline Gantt Chart** - Project timelines with start/end dates per user
+   - Controls: Date range filter, min hours, user toggle, status colors, name toggle, sort options
+2. **Time Spent Heatmap Calendar** - Daily/weekly activity heatmap
+   - Controls: Date range, hour threshold, day/week/month aggregation, color schemes, weekend toggle
+3. **Progress Timeline** - Module completion over time
+   - Controls: Animation speed, time granularity, stack by user/module, cumulative toggle
 
-**📈 Interactive Visualizations** (6 comprehensive chart types):
+**📈 Comparison (3 visualizations)**
+4. **Multi-User Bar/Column Chart** - Total hours per module comparison
+   - Controls: Top N users (5-50), module filter, grouping, averages line, orientation, stacked/grouped
+5. **Box Plot / Violin Plot** - Distribution of hours per module
+   - Controls: Outlier threshold, confidence interval, data points, quartiles, validated comparison
+6. **Radar/Spider Chart** - Performance across modules for selected users
+   - Controls: User count (1-6), metric selector, normalization, fill opacity, grid lines
 
-1. **👑 Top Users by Total Hours** - Bar chart of top users
-   - Dynamically adjusts based on "Top N Users" slider
-   - Shows total hours per user
-   - Export to PNG
+**🎯 Performance (3 visualizations)**
+7. **Scatter Plot - Hours vs Score** - Time spent vs final mark
+   - Controls: X/Y axis ranges, point size, color by user/module/status, trend line, validation filter
+8. **Efficiency Score Chart** - Score per hour ratio
+   - Controls: Efficiency threshold, min projects, sort options, validated only, top performer highlighting
+9. **Completion Rate Gauge** - Project completion statistics
+   - Controls: Time period selector, aggregate/by-user view, in-progress toggle, difficulty segments
 
-2. **📚 Average Time per Module** - Horizontal bar chart
-   - Shows average time spent on each Python module
-   - Sorted by time (highest first)
-   - Displays top 15 modules
-   - Export to PNG
+**🔄 Flow & Progression (3 visualizations)**
+10. **Sankey Diagram** - Flow from module to module (success/failure paths)
+    - Controls: Flow threshold, module depth (0-10), success rate coloring, validated paths
+11. **Funnel Chart** - Student drop-off through modules
+    - Controls: Starting/ending module, percentage vs absolute, user highlight, retention coloring
+12. **Stream Graph** - Active students per module over time
+    - Controls: Date range, smoothing factor, stack order, module visibility, height normalization
 
-3. **📈 Project Status Distribution** - Doughnut chart
-   - Visual breakdown of finished/in_progress/waiting projects
-   - Interactive legend
-   - Export to PNG
+**📊 Statistical (3 visualizations)**
+13. **Histogram - Hour Distribution** - Frequency of hours spent per project
+    - Controls: Bin size, hour range, normal curve overlay, mean/median lines, module split, log scale
+14. **Cumulative Distribution (CDF)** - Cumulative hours across students
+    - Controls: Percentile highlight (10-99th), total vs per-module view, module comparison, user markers
+15. **Correlation Matrix** - Relationships between metrics
+    - Controls: Correlation strength filter, metric selection, color scale (diverging/sequential), value display
 
-4. **⏰ Hours Distribution** - Histogram
-   - Distribution of total hours across all users
-   - 20 bins showing frequency
-   - Export to PNG
+**🏆 Leaderboard (2 visualizations)**
+16. **Ranking Table with Sparklines** - User rankings with mini-charts
+    - Controls: Date range, weighting sliders (hours/marks/speed), sort options, column toggles, pagination
+17. **Bump Chart (Rank Over Time)** - How rankings change as modules progress
+    - Controls: Time progression, top N users (3-20), user highlight, rank changes, smooth transitions
 
-5. **🎯 Hours vs Final Score** - Scatter plot
-   - Relationship between time spent and scores achieved
-   - Each point is a project
-   - Hover shows user, project, hours, and score
-   - Export to PNG
+**🎨 Advanced (4 visualizations)**
+18. **Treemap - Hours by User & Module** - Hierarchical view of time allocation
+    - Controls: Depth level (1-3), minimum size threshold, color by efficiency/status/module, tile algorithm, labels
+19. **Sunburst Chart** - Hierarchical breakdown with drill-down
+    - Controls: Inner radius, arc padding, click-to-zoom, color metric, percentage display
+20. **Parallel Coordinates** - Multi-dimensional comparison across metrics
+    - Controls: Axis filters, axis reorder, user highlight, cluster coloring, brush filter
+21. **Network Graph** - Users connected by similar patterns/timeframes
+    - Controls: Similarity threshold, force strength, node sizing, completion coloring, layout algorithm
 
-6. **⚡ Efficiency Score** - Bar chart showing score per hour ratio
-   - Top 20 most efficient users
-   - Shows points earned per hour spent
-   - Helps identify productive students
-   - Export to PNG
+**🎯 Interactive Components (3 visualizations)**
+22. **KPI Cards with Trends** - Key metrics with trend indicators
+    - Controls: Time comparison period (7-365 days), KPI selectors, trend arrows, period comparison
+23. **Filterable Data Table** - All project entries
+    - Controls: Hours range, score range, date range, column visibility, export options (CSV/JSON/Excel)
+24. **Animated Race Bar Chart** - Top students progressing through modules
+    - Controls: Animation speed, time step (day/week/month), bar count, metric selector, play/pause, user highlight
 
-**📋 Detailed Data Table**:
-- **Sortable Columns**: Click column headers to sort
-- **Search Functionality**: Real-time search filter for users
-- **Comprehensive Stats**: 
-  - Rank (by total hours)
-  - User login
-  - Project count
-  - Total hours
-  - Average hours per project
-  - Average score
-  - Completion percentage with color-coded badges
-- **Export to CSV**: Download filtered data
-
-**✨ Interactive Features**:
-- All filters apply instantly across all visualizations
-- Charts update dynamically based on filter selections
-- Export individual charts as PNG images
-- Export table data as CSV
-- Hover tooltips on all chart elements
-- Responsive layout adapts to screen size
-- Smooth animations and transitions
-
-**🎨 Color-Coded Elements**:
-- Completion Rate Badges:
-  - 🟢 Green (≥75%): High completion
-  - 🟡 Yellow (50-74%): Medium completion
-  - 🔴 Red (<50%): Low completion
+#### ✨ Key Features
+- **Individual Controls**: Each visualization has 2-8 dedicated sliders/selectors
+- **No Global Filters**: Each chart maintains its own independent state
+- **Export Capabilities**: PNG for charts, CSV/JSON for data
+- **Responsive Design**: Works on desktop, tablet, and mobile
+- **Modern Libraries**: Chart.js, Plotly.js, and D3.js via CDN
+- **Self-Contained**: Single HTML file with embedded data
 
 **To view**: Simply open the `*_dashboard.html` file in any modern web browser!
 
