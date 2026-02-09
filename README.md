@@ -17,7 +17,7 @@ A Python application that uses the 42 API to gather and analyze time spent on Py
 - 🎯 Filter for new common core Python modules only
 - 📉 **Detailed statistics** - Individual module times and averages
 - 📊 **Static visualizations** - Generate PNG charts and graphs
-- 🌐 **Interactive Web Dashboard** - Real-time filtering, multiple charts, comprehensive views
+- 🌐 **Grafana-Style Interactive Dashboard** - Professional UI with panels, filters, and real-time updates
 - ⚡ Efficient workflow with optional campus filtering
 
 ## Prerequisites
@@ -128,76 +128,57 @@ The application generates:
 
 ### Interactive Dashboard Features
 
-The dashboard is a **production-ready analytics platform** with comprehensive customization and Python-only focus:
+The dashboard is a **Grafana-inspired analytics platform** with professional UI and comprehensive features:
 
-**📊 Real-time Statistics** (6 Python-focused cards):
-- Total Users 👥
-- Filtered Users 🔍
-- Total Hours ⏱️
-- Avg Hours per User 📊
-- Python Projects 🐍
-- Completion Rate ✅
+**🎨 Grafana-Style Design**:
+- **Dark Theme**: Professional Grafana color scheme (#0b0c0e canvas, #111217 primary, #33a2e5 accent)
+- **Panel System**: Organized sections with headers and actions
+- **Responsive Grid**: Auto-adapts to screen size
+- **Professional Typography**: Clean, readable fonts
 
-**🎨 Per-Chart Customization**:
-Every chart has its own settings panel with:
-- **Top N Slider**: Choose how many items to display (5-50)
-- **Chart Type Selector**: Bar/Line/Pie/Doughnut/Scatter
-- **6 Color Schemes**: Default/Warm/Cool/Pastel/Vibrant/Monochrome
-- **Show/Hide Labels**: Toggle data labels
-- **Animation Toggle**: Enable/disable animations
-- **Individual Export**: Download each chart as PNG
-- **Settings Persistence**: All saved to localStorage
+**🔧 Toolbar & Controls**:
+- **Time Range Picker**: Select date ranges (UI ready for "Last 30 days", custom ranges)
+- **Variable Selectors**: Module and Status dropdowns
+- **Quick Filters**: Top 10, Completed, Reset buttons
+- **Auto-Refresh**: Off / 30s / 1m / 5m options
 
-**🌍 Global Customization**:
-- **Theme Selector**: Light/Dark/Auto (follows system preferences)
-- **Layout Density**: Compact/Comfortable/Spacious
-- **Font Size**: Small/Medium/Large
-- **Save/Load/Reset**: Configuration management
-- **Export/Import**: Settings as JSON
+**📊 Statistics Overview** (4 stat panels):
+- Total Users 👥 - Unique user count
+- Total Hours ⏱️ - Sum of all time spent
+- Avg Hours/User 📊 - Mean per user
+- Completion Rate ✅ - % of finished projects
 
-**🔍 Advanced Filtering Options**:
-- **Search & Basic**:
-  - Search users by username (with keyboard shortcut `F`)
-  - Filter by specific Python module
-  - Filter by project status (finished, in_progress, etc.)
-- **Module Range & Completion**:
-  - Module Range Start/End (show only modules within range)
-  - "Show up to Module N" capability
-  - Show Completed Modules Only
-  - Show Finished Projects Only
-- **Time & Activity**:
-  - Minimum/Maximum Hours sliders (with live values)
-  - Minimum Projects slider
-  - Quick Filter Presets (All/Active >10h/Beginners <5h/Completed)
-  - Filter summary showing active filters
+**📈 Interactive Charts** (4 panels with full controls):
+1. **Top Users by Hours** 👑 - Bar chart of top 15 students
+2. **Module Average Times** 📚 - Horizontal bar chart per module
+3. **Status Distribution** 📈 - Doughnut chart of project status
+4. **Time Distribution** ⏰ - Histogram of hour ranges
 
-**📈 Interactive Charts** (9 customizable visualizations):
-1. **Top Users by Hours** 👑 - Leaderboard with configurable top N
-2. **Module Average Times** 📚 - Time per module, multiple chart types
-3. **Time Distribution** ⏰ - Histogram with adjustable bins
-4. **Project Status** 📈 - Status breakdown (pie/doughnut/bar)
-5. **Module Completion Count** ✅ - How many completed each module
-6. **Module Progression** 📊 - Drop-off visualization
-7. **Completion Rate by Module** 🎯 - Success rate per module
-8. **Speed Runners** ⚡ - Fastest finishers ranking
-9. **Project Difficulty** 🎲 - Time vs completion scatter
+**Panel Features**:
+- Individual panel actions (Refresh, Export, Fullscreen)
+- Hover interactions
+- Click to fullscreen mode
+- Export charts as PNG
 
-**⌨️ Keyboard Shortcuts**:
-- `R` - Reset all filters
-- `S` - Toggle settings panel
-- `H` - Show help overlay
-- `F` - Focus search box
-- `Esc` - Close overlays
+**📋 Detailed Data Table**:
+- Student rankings sorted by hours
+- Comprehensive stats (projects, hours, averages)
+- Completion rate badges
+- Export ready (CSV export button)
 
-**✨ Enhanced UX**:
-- Collapsible sections for cleaner interface
-- Toast notifications for user actions
-- Loading states and smooth transitions
-- Professional styling with modern design
-- Fully responsive for mobile/tablet/desktop
-- Help overlay with comprehensive documentation
+**🔄 Real-Time Features**:
+- Filters apply instantly
+- Auto-refresh options
+- Toast notifications for actions
+- Smooth transitions
 
-**📋 Enhanced User Table**:
+**✨ Professional UX**:
+- Grafana-style panels and cards
+- Loading states
+- Empty state messages
+- Toast notifications (Success/Error/Info)
+- Keyboard navigation ready
+- Mobile responsive
 - Sortable columns with rankings
 - Module count per user
 - Color-coded status badges

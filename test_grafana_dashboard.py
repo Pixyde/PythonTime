@@ -72,7 +72,7 @@ test_data = [
 ]
 
 # Read template
-with open('dashboard_template_new.html', 'r') as f:
+with open('dashboard_template.html', 'r') as f:
     template = f.read()
 
 # Replace placeholder
