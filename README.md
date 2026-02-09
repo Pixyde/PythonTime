@@ -128,12 +128,14 @@ The application generates:
 
 ### Interactive Dashboard Features
 
-The upgraded HTML dashboard provides comprehensive filtering and visualization:
+The upgraded HTML dashboard provides comprehensive filtering and visualization with multi-language tracking:
 
-**📊 Real-time Statistics** (6 cards):
+**📊 Real-time Statistics** (10 cards):
 - Total Users / Filtered Users
-- Total Hours / Average Hours per User
+- Total Hours / Avg Hours per User
 - Python Projects / Completion Rate
+- C++ Projects / Web Projects
+- Speed Champion (fastest user) / Avg Time per Project
 
 **🔍 Advanced Filtering Options**:
 - **Search & Basic**:
@@ -150,14 +152,29 @@ The upgraded HTML dashboard provides comprehensive filtering and visualization:
   - Minimum Projects slider
   - Filter summary showing active filters
 
-**📈 Interactive Charts** (7 visualizations):
+**📈 Interactive Charts** (10 visualizations):
 1. Top 15 users by hours (bar chart)
-2. Module average times (horizontal bar chart)
-3. Time distribution across users (histogram)
-4. Project status breakdown (doughnut chart)
-5. Module completion counts (bar chart)
-6. **NEW**: Module progression (line chart showing drop-off)
-7. **NEW**: Completion rate by module (percentage bar chart)
+2. **⚡ Speed Runners** - Fastest finishers (NEW)
+3. Module average times (horizontal bar chart)
+4. **🌐 Projects by Language** - Multi-language breakdown (NEW)
+5. Time distribution across users (histogram)
+6. Project status breakdown (doughnut chart)
+7. Module completion counts (bar chart)
+8. Module progression (line chart showing drop-off)
+9. Completion rate by module (percentage bar chart)
+10. **💪 Project Difficulty Analysis** - Time vs completion scatter plot (NEW)
+
+**🌐 Multi-Language Tracking**:
+- Automatic detection of Python, C++/C, Web/System, and Other projects
+- Per-language statistics and completion rates
+- Language distribution visualization
+- Smart keyword-based categorization
+
+**⚡ Speed & Efficiency Analytics**:
+- Speed Runners chart showing fastest completers
+- Average time per project calculations
+- Speed Champion identification
+- Efficiency rankings
 
 **📋 Enhanced User Table**:
 - Sortable columns with rankings
