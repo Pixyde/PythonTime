@@ -188,22 +188,21 @@ def get_python_project_ids(client: API42Client, cursus_id: int = 21) -> List[int
     return python_project_ids
 
 
-def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_user_ids: set) -> Dict[int, List[Dict]]:
+def fetch_users_by_projects(client: API42Client, project_ids: List[int]) -> Dict[int, List[Dict]]:
     """
     Fetch users who worked on Python projects (project-based approach)
     
-    This is much more efficient than fetching all projects for all users.
+    Gets users directly from project endpoints without campus filtering.
     
     Args:
         client: API client instance
         project_ids: List of Python project IDs
-        campus_user_ids: Set of user IDs from the campus (for filtering)
         
     Returns:
         Dictionary mapping user_id -> list of their Python projects
     """
     print(f"\nFetching users for {len(project_ids)} Python projects...")
-    print("(This is much more efficient than fetching all projects for all users)")
+    print("(Getting users directly from project endpoints)")
     
     # Map to store projects by user
     users_projects_map = {}
@@ -216,12 +215,12 @@ def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_
             project_users = client.get_project_users(project_id)
             total_api_calls += 1
             
-            # Filter to only users from our campus
+            # Add all users who worked on this project
             for project_user in project_users:
                 user = project_user.get('user', {})
                 user_id = user.get('id')
                 
-                if user_id and user_id in campus_user_ids:
+                if user_id:
                     if user_id not in users_projects_map:
                         users_projects_map[user_id] = []
                     users_projects_map[user_id].append(project_user)
@@ -229,7 +228,7 @@ def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_
             print(f"    ⚠ Error fetching project {project_id}: {e}")
             continue
     
-    print(f"\n✓ Fetched data with {total_api_calls} API calls (vs {len(campus_user_ids)} with old approach)")
+    print(f"\n✓ Fetched data with {total_api_calls} API calls")
     print(f"✓ Found {len(users_projects_map)} users with Python projects")
     
     return users_projects_map
@@ -732,7 +731,7 @@ def main():
         if cache_stats:
             print(f"Cache: {cache_stats['total_files']} files, {cache_stats['total_size_mb']} MB")
         
-        # Let user select campus
+        # Let user select campus (for reference/filtering if needed later)
         selected_campus_id = select_campus(client)
         
         # Check if user selected "all campuses"
@@ -741,36 +740,12 @@ def main():
             process_all_campuses(client, MAIN_CURSUS_ID)
             return
         
-        # Get students from selected campus
-        print(f"\nFetching students from selected campus (ID: {selected_campus_id})...")
-        cursus_users = client.get_campus_users(selected_campus_id, MAIN_CURSUS_ID)
+        print(f"\nNote: Selected campus ID {selected_campus_id} for reference")
+        print("Fetching users directly from Python projects...")
         
-        if not cursus_users:
-            print("No students found. This might be due to:")
-            print("  - Incorrect campus ID")
-            print("  - API permissions")
-            print("  - No students in this cursus")
-            return
-        
-        # Get all students (adjust filter logic as needed for promotion 4)
-        print(f"Filtering students...")
-        students = get_all_students(cursus_users)
-        
-        # Apply MAX_STUDENTS limit if configured
-        if MAX_STUDENTS is not None and len(students) > MAX_STUDENTS:
-            print(f"Limiting to first {MAX_STUDENTS} students (MAX_STUDENTS setting)")
-            students = students[:MAX_STUDENTS]
-        
-        print(f"Found {len(students)} students to analyze")
-        
-        # Extract user IDs for filtering
-        user_ids = [cu.get('user', {}).get('id') for cu in students if cu.get('user', {}).get('id')]
-        campus_user_ids = set(user_ids)
-        print(f"Extracted {len(user_ids)} valid user IDs")
-        
-        # NEW APPROACH: Fetch users by Python projects (much more efficient!)
+        # SIMPLIFIED APPROACH: Get users directly from projects
         print("\n" + "=" * 60)
-        print("PROJECT-BASED FETCHING (OPTIMIZED)")
+        print("PROJECT-BASED USER FETCHING")
         print("=" * 60)
         
         # Step 1: Get Python project IDs
@@ -780,11 +755,11 @@ def main():
             print("\n✗ No Python projects found in this cursus")
             return
         
-        # Step 2: Fetch users for each Python project (project -> users approach)
-        projects_map = fetch_users_by_projects(client, python_project_ids, campus_user_ids)
+        # Step 2: Fetch users directly from each Python project
+        projects_map = fetch_users_by_projects(client, python_project_ids)
         
         if not projects_map:
-            print("\n✗ No students found working on Python projects")
+            print("\n✗ No users found working on Python projects")
             return
         
         # Step 3: Fetch locations only for users who have Python projects
