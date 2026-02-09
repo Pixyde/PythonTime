@@ -386,6 +386,43 @@ def create_visualizations(results: List[Dict], stats: Dict, output_dir: str = ".
     print("  ✓ All visualizations generated successfully!")
 
 
+def generate_dashboard(results: List[Dict], output_file: str):
+    """
+    Generate an interactive HTML dashboard from results
+    
+    Args:
+        results: List of user data dictionaries
+        output_file: Path to save the dashboard HTML file
+    """
+    print("\n📊 Generating interactive dashboard...")
+    
+    try:
+        # Read the template
+        template_path = os.path.join(os.path.dirname(__file__), 'dashboard_template.html')
+        with open(template_path, 'r', encoding='utf-8') as f:
+            template = f.read()
+        
+        # Convert results to JSON
+        import json
+        data_json = json.dumps(results, indent=2)
+        
+        # Replace placeholder with actual data
+        dashboard_html = template.replace('{{DATA_PLACEHOLDER}}', data_json)
+        
+        # Save dashboard
+        dashboard_file = output_file.replace('.json', '_dashboard.html')
+        with open(dashboard_file, 'w', encoding='utf-8') as f:
+            f.write(dashboard_html)
+        
+        print(f"  ✓ Dashboard saved to: {dashboard_file}")
+        print(f"  ✓ Open in browser to view interactive visualizations!")
+        
+        return dashboard_file
+    except Exception as e:
+        print(f"  ⚠️  Could not generate dashboard: {e}")
+        return None
+
+
 def main():
     """Main application entry point"""
     print("=" * 60)
@@ -481,11 +518,17 @@ def main():
             stats = calculate_module_statistics(results)
             display_statistics(results, stats)
             
-            # Create visualizations
+            # Create static visualizations
             try:
                 create_visualizations(results, stats)
             except Exception as e:
-                print(f"\n⚠️  Could not generate visualizations: {e}")
+                print(f"\n⚠️  Could not generate static visualizations: {e}")
+            
+            # Generate interactive dashboard
+            try:
+                generate_dashboard(results, output_file)
+            except Exception as e:
+                print(f"\n⚠️  Could not generate dashboard: {e}")
         
         # Show cache stats again
         cache_stats = client.get_cache_stats()

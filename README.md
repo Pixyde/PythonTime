@@ -15,7 +15,8 @@ A Python application that uses the 42 API to gather and analyze time spent on Py
 - 💽 Intelligent caching system to avoid redundant API calls
 - 🎯 Filter for new common core Python modules only
 - 📉 **Detailed statistics** - Individual module times and averages
-- 📊 **Data visualization** - Generate charts and graphs
+- 📊 **Static visualizations** - Generate PNG charts and graphs
+- 🌐 **NEW: Interactive Web Dashboard** - Real-time filtering, multiple charts, comprehensive views
 - ⚡ Simple, efficient workflow - no campus selection needed
 
 ## Prerequisites
@@ -104,10 +105,29 @@ This application uses a direct, efficient approach:
 The application generates:
 
 1. **JSON data file**: `python_time_analysis_YYYYMMDD_HHMMSS.json` with detailed user data
-2. **Visualization files**:
+2. **Interactive Dashboard**: `python_time_analysis_YYYYMMDD_HHMMSS_dashboard.html` with comprehensive visualizations
+3. **Static PNG charts**:
    - `module_average_times.png` - Bar chart of average time per module
    - `top_students.png` - Bar chart of top 15 users by total hours
    - `time_distribution.png` - Histogram of time distribution
+
+### Interactive Dashboard Features
+
+The HTML dashboard provides:
+- **📊 Real-time Statistics**: Total users, hours, averages, project counts
+- **🔍 Live Filtering**:
+  - Search users by username
+  - Filter by specific Python module
+  - Filter by project status (finished, in_progress, etc.)
+- **📈 Multiple Interactive Charts**:
+  - Top 15 users by hours (bar chart)
+  - Module average times (horizontal bar chart)
+  - Time distribution across users (histogram)
+  - Project status breakdown (doughnut chart)
+  - Module completion counts (bar chart)
+- **📋 Sortable User Table**: Detailed breakdown with rankings
+
+**To view**: Simply open the `*_dashboard.html` file in any modern web browser!
 
 ### JSON Structure
 
