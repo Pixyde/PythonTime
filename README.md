@@ -128,19 +128,42 @@ The application generates:
 
 ### Interactive Dashboard Features
 
-The HTML dashboard provides:
-- **📊 Real-time Statistics**: Total users, hours, averages, project counts
-- **🔍 Live Filtering**:
+The upgraded HTML dashboard provides comprehensive filtering and visualization:
+
+**📊 Real-time Statistics** (6 cards):
+- Total Users / Filtered Users
+- Total Hours / Average Hours per User
+- Python Projects / Completion Rate
+
+**🔍 Advanced Filtering Options**:
+- **Search & Basic**:
   - Search users by username
   - Filter by specific Python module
   - Filter by project status (finished, in_progress, etc.)
-- **📈 Multiple Interactive Charts**:
-  - Top 15 users by hours (bar chart)
-  - Module average times (horizontal bar chart)
-  - Time distribution across users (histogram)
-  - Project status breakdown (doughnut chart)
-  - Module completion counts (bar chart)
-- **📋 Sortable User Table**: Detailed breakdown with rankings
+- **Module Range & Completion**:
+  - Module Range Start/End (show only modules within range)
+  - "Show up to Module N" capability
+  - Show Completed Modules Only
+  - Show Finished Projects Only
+- **Time & Activity**:
+  - Minimum/Maximum Hours sliders (with live values)
+  - Minimum Projects slider
+  - Filter summary showing active filters
+
+**📈 Interactive Charts** (7 visualizations):
+1. Top 15 users by hours (bar chart)
+2. Module average times (horizontal bar chart)
+3. Time distribution across users (histogram)
+4. Project status breakdown (doughnut chart)
+5. Module completion counts (bar chart)
+6. **NEW**: Module progression (line chart showing drop-off)
+7. **NEW**: Completion rate by module (percentage bar chart)
+
+**📋 Enhanced User Table**:
+- Sortable columns with rankings
+- Module count per user
+- Color-coded status badges
+- Export filtered data to JSON
 
 **To view**: Simply open the `*_dashboard.html` file in any modern web browser!
 
