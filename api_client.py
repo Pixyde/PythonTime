@@ -179,6 +179,22 @@ class API42Client:
         print(f"✓ Found {len(users)} users")
         return users
     
+    def get_cursus_projects(self, cursus_id: int = 21) -> List[Dict]:
+        """
+        Get all projects for a specific cursus
+        
+        Args:
+            cursus_id: Cursus ID (21 is typically the main 42 cursus)
+            
+        Returns:
+            List of project dictionaries
+        """
+        print(f"Fetching projects for cursus {cursus_id}...")
+        endpoint = f"/v2/cursus/{cursus_id}/projects"
+        projects = self._make_paginated_request(endpoint)
+        print(f"✓ Found {len(projects)} projects")
+        return projects
+    
     def get_user_projects(self, user_id: int) -> List[Dict]:
         """
         Get all projects for a specific user

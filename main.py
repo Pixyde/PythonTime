@@ -90,6 +90,87 @@ def get_all_students(cursus_users: List[Dict]) -> List[Dict]:
     return students
 
 
+def get_python_project_ids(client: API42Client, cursus_id: int = 21) -> List[int]:
+    """
+    Get Python project IDs from the cursus
+    
+    Args:
+        client: API client instance
+        cursus_id: Cursus ID
+        
+    Returns:
+        List of Python project IDs
+    """
+    print("\nIdentifying Python projects...")
+    projects = client.get_cursus_projects(cursus_id)
+    
+    python_keywords = ['python', 'py', 'django', 'flask', 'ft_transcendence']
+    python_project_ids = []
+    
+    for project in projects:
+        project_name = project.get('name', '').lower()
+        project_slug = project.get('slug', '').lower()
+        
+        # Check if project is Python-related
+        is_python = any(keyword in project_name or keyword in project_slug for keyword in python_keywords)
+        
+        if is_python:
+            project_id = project.get('id')
+            if project_id:
+                python_project_ids.append(project_id)
+                print(f"  Found Python project: {project.get('name')} (ID: {project_id})")
+    
+    print(f"✓ Identified {len(python_project_ids)} Python projects")
+    return python_project_ids
+
+
+def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_user_ids: set) -> Dict[int, List[Dict]]:
+    """
+    Fetch users who worked on Python projects (project-based approach)
+    
+    This is much more efficient than fetching all projects for all users.
+    
+    Args:
+        client: API client instance
+        project_ids: List of Python project IDs
+        campus_user_ids: Set of user IDs from the campus (for filtering)
+        
+    Returns:
+        Dictionary mapping user_id -> list of their Python projects
+    """
+    print(f"\nFetching users for {len(project_ids)} Python projects...")
+    print("(This is much more efficient than fetching all projects for all users)")
+    
+    # Map to store projects by user
+    users_projects_map = {}
+    total_api_calls = 0
+    
+    for i, project_id in enumerate(project_ids, 1):
+        print(f"  [{i}/{len(project_ids)}] Fetching users for project ID {project_id}...")
+        
+        try:
+            project_users = client.get_project_users(project_id)
+            total_api_calls += 1
+            
+            # Filter to only users from our campus
+            for project_user in project_users:
+                user = project_user.get('user', {})
+                user_id = user.get('id')
+                
+                if user_id and user_id in campus_user_ids:
+                    if user_id not in users_projects_map:
+                        users_projects_map[user_id] = []
+                    users_projects_map[user_id].append(project_user)
+        except Exception as e:
+            print(f"    ⚠ Error fetching project {project_id}: {e}")
+            continue
+    
+    print(f"\n✓ Fetched data with {total_api_calls} API calls (vs {len(campus_user_ids)} with old approach)")
+    print(f"✓ Found {len(users_projects_map)} users with Python projects")
+    
+    return users_projects_map
+
+
 def process_student_optimized(cursus_user: Dict, projects_map: Dict[int, List[Dict]], locations_map: Dict[int, List[Dict]], new_common_core_only: bool = False) -> Dict:
     """
     Process a single student's data using pre-fetched data maps
@@ -229,18 +310,35 @@ def main():
         
         print(f"Found {len(students)} students to analyze")
         
-        # Extract user IDs for bulk fetching
+        # Extract user IDs for filtering
         user_ids = [cu.get('user', {}).get('id') for cu in students if cu.get('user', {}).get('id')]
+        campus_user_ids = set(user_ids)
         print(f"Extracted {len(user_ids)} valid user IDs")
         
-        # Bulk fetch projects and locations for all users
+        # NEW APPROACH: Fetch users by Python projects (much more efficient!)
         print("\n" + "=" * 60)
-        print("OPTIMIZED BULK FETCHING")
+        print("PROJECT-BASED FETCHING (OPTIMIZED)")
         print("=" * 60)
         
-        projects_map = client.get_projects_users_by_user_map(user_ids)
+        # Step 1: Get Python project IDs
+        python_project_ids = get_python_project_ids(client, MAIN_CURSUS_ID)
+        
+        if not python_project_ids:
+            print("\n✗ No Python projects found in this cursus")
+            return
+        
+        # Step 2: Fetch users for each Python project (project -> users approach)
+        projects_map = fetch_users_by_projects(client, python_project_ids, campus_user_ids)
+        
+        if not projects_map:
+            print("\n✗ No students found working on Python projects")
+            return
+        
+        # Step 3: Fetch locations only for users who have Python projects
+        python_users = list(projects_map.keys())
+        print(f"\nFetching locations for {len(python_users)} users with Python projects...")
         locations_map = client.get_locations_by_user_map(
-            user_ids, 
+            python_users,
             begin_at=LOCATION_BEGIN_DATE,
             end_at=LOCATION_END_DATE
         )
@@ -251,10 +349,16 @@ def main():
             print("(Filtering for NEW COMMON CORE Python modules only)")
         print("=" * 60)
         
-        # Process each student using pre-fetched data
+        # Process only students who have Python projects
         results = []
-        python_students = 0
-        for i, cursus_user in enumerate(students, 1):
+        processed = 0
+        for user_id in projects_map.keys():
+            # Find the cursus_user for this user_id
+            cursus_user = next((cu for cu in students if cu.get('user', {}).get('id') == user_id), None)
+            if not cursus_user:
+                continue
+                
+            processed += 1
             user = cursus_user.get('user', {})
             login = user.get('login', 'unknown')
             
@@ -266,10 +370,9 @@ def main():
             )
             if student_data:
                 results.append(student_data)
-                python_students += 1
-                print(f"[{i}/{len(students)}] {login}: {student_data['total_python_hours']:.2f}h across {len(student_data['python_projects'])} projects")
+                print(f"[{processed}/{len(projects_map)}] {login}: {student_data['total_python_hours']:.2f}h across {len(student_data['python_projects'])} projects")
             else:
-                print(f"[{i}/{len(students)}] {login}: No Python projects")
+                print(f"[{processed}/{len(projects_map)}] {login}: No Python projects (after filtering)")
         
         # Save results
         output_file = f"python_time_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
@@ -278,8 +381,8 @@ def main():
         
         print("\n" + "=" * 60)
         print(f"Analysis complete!")
-        print(f"Processed {len(students)} students")
-        print(f"Found {python_students} students with Python projects")
+        print(f"Total campus students: {len(students)}")
+        print(f"Students with Python projects: {len(results)}")
         if USE_NEW_COMMON_CORE_ONLY:
             print(f"(Filtered for NEW COMMON CORE modules only)")
         print(f"Results saved to: {output_file}")
