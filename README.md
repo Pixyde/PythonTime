@@ -164,9 +164,9 @@ The application displays:
 
 ### Optimization Strategy
 
-The application uses a **project-based fetching approach** with **direct campus endpoint** to drastically minimize API calls:
+The application uses a **project-based fetching approach** to drastically minimize API calls:
 
-1. **Fetch campus users directly**: Uses `/v2/campus/{campus_id}/users` endpoint to get all campus users with their cursus data in one call (1 API call, more efficient than `/v2/cursus_users` with filters)
+1. **Fetch campus users**: Uses `/v2/cursus_users` endpoint with campus and cursus filters to get users with their cursus data (1 API call)
 2. **Identify Python projects**: Fetches all projects from the cursus and filters for Python-related ones (1 API call)
 3. **Fetch users per project**: For each Python project, fetch users who worked on it (~10-20 API calls)
 4. **Bulk fetch locations**: Only fetch location data for users who have Python projects (optimized count)
