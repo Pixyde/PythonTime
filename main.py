@@ -156,6 +156,101 @@ def get_python_project_ids(client: API42Client, cursus_id: int = 21) -> List[int
     return python_project_ids
 
 
+def get_cpp_project_ids(client: API42Client, cursus_id: int = 21) -> List[int]:
+    """
+    Get C++ project IDs from the cursus
+    
+    Args:
+        client: API client instance
+        cursus_id: Cursus ID
+        
+    Returns:
+        List of C++ project IDs
+    """
+    print("\nIdentifying C++ projects...")
+    projects = client.get_cursus_projects(cursus_id)
+    
+    cpp_keywords = ['c++', 'cpp', 'piscine c', 'libft', 'ft_printf', 'get_next_line', 
+                    'born2beroot', 'so_long', 'fdf', 'minitalk', 'push_swap',
+                    'philosophers', 'minishell', 'cub3d', 'netpractice', 'cpp module',
+                    'webserv', 'ft_irc', 'inception', 'ft_containers']
+    cpp_project_ids = []
+    
+    for project in projects:
+        project_name = project.get('name', '').lower()
+        project_slug = project.get('slug', '').lower()
+        
+        # Check if project is C++-related
+        is_cpp = any(keyword in project_name or keyword in project_slug for keyword in cpp_keywords)
+        
+        if is_cpp:
+            project_id = project.get('id')
+            if project_id:
+                cpp_project_ids.append(project_id)
+                print(f"  Found C++ project: {project.get('name')} (ID: {project_id})")
+    
+    print(f"✓ Identified {len(cpp_project_ids)} C++ projects")
+    return cpp_project_ids
+
+
+def get_all_project_types(client: API42Client, cursus_id: int = 21) -> Dict[str, List[int]]:
+    """
+    Get all project IDs organized by language/type
+    
+    Args:
+        client: API client instance
+        cursus_id: Cursus ID
+        
+    Returns:
+        Dictionary mapping project type to list of project IDs
+    """
+    print("\nIdentifying all project types...")
+    projects = client.get_cursus_projects(cursus_id)
+    
+    project_types = {
+        'Python': [],
+        'C++': [],
+        'Web': [],
+        'System': [],
+        'Other': []
+    }
+    
+    python_keywords = ['python', 'py', 'django', 'flask']
+    cpp_keywords = ['c++', 'cpp', 'piscine c', 'libft', 'ft_printf', 'get_next_line',
+                    'philosophers', 'minishell', 'cub3d', 'push_swap', 'cpp module',
+                    'webserv', 'ft_irc', 'ft_containers']
+    web_keywords = ['ft_transcendence', 'webserv', 'matcha', 'hypertube', 'red_tetris']
+    system_keywords = ['born2beroot', 'inception', 'netpractice']
+    
+    for project in projects:
+        project_name = project.get('name', '').lower()
+        project_slug = project.get('slug', '').lower()
+        project_id = project.get('id')
+        
+        if not project_id:
+            continue
+        
+        # Categorize project
+        if any(kw in project_name or kw in project_slug for kw in python_keywords):
+            project_types['Python'].append(project_id)
+            print(f"  [Python] {project.get('name')} (ID: {project_id})")
+        elif any(kw in project_name or kw in project_slug for kw in cpp_keywords):
+            project_types['C++'].append(project_id)
+            print(f"  [C++] {project.get('name')} (ID: {project_id})")
+        elif any(kw in project_name or kw in project_slug for kw in web_keywords):
+            project_types['Web'].append(project_id)
+            print(f"  [Web] {project.get('name')} (ID: {project_id})")
+        elif any(kw in project_name or kw in project_slug for kw in system_keywords):
+            project_types['System'].append(project_id)
+            print(f"  [System] {project.get('name')} (ID: {project_id})")
+    
+    for ptype, pids in project_types.items():
+        if pids:
+            print(f"✓ Identified {len(pids)} {ptype} projects")
+    
+    return project_types
+
+
 def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_id: int = None) -> Dict[int, List[Dict]]:
     """
     Fetch users who worked on Python projects (project-based approach)
