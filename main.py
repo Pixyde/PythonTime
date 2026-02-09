@@ -72,6 +72,48 @@ def get_all_students(cursus_users: List[Dict]) -> List[Dict]:
     return students
 
 
+def process_student_optimized(cursus_user: Dict, projects_map: Dict[int, List[Dict]], locations_map: Dict[int, List[Dict]]) -> Dict:
+    """
+    Process a single student's data using pre-fetched data maps
+    
+    Args:
+        cursus_user: Cursus user dictionary
+        projects_map: Map of user_id -> projects list
+        locations_map: Map of user_id -> locations list
+        
+    Returns:
+        Dictionary with student's Python project analysis
+    """
+    user = cursus_user.get('user', {})
+    user_id = user.get('id')
+    login = user.get('login', 'unknown')
+    
+    if not user_id:
+        return None
+    
+    # Get projects and locations from pre-fetched maps
+    projects = projects_map.get(user_id, [])
+    locations = locations_map.get(user_id, [])
+    
+    # Filter to Python projects
+    python_projects = DataProcessor.filter_python_projects(projects)
+    
+    if not python_projects:
+        return None
+    
+    # Analyze time spent on Python projects
+    analysis = DataProcessor.analyze_python_time(python_projects, locations)
+    
+    return {
+        'user_id': user_id,
+        'login': login,
+        'email': user.get('email', ''),
+        'cursus_level': cursus_user.get('level', 0),
+        'python_projects': analysis,
+        'total_python_hours': sum(p['time_spent_hours'] for p in analysis)
+    }
+
+
 def process_student(client: API42Client, cursus_user: Dict) -> Dict:
     """
     Process a single student's data
@@ -132,14 +174,19 @@ def main():
         print("\nLoading configuration...")
         client_id, client_secret = load_config()
         
-        # Initialize API client
-        print("Initializing 42 API client...")
-        client = API42Client(client_id, client_secret)
+        # Initialize API client with caching enabled
+        print("Initializing 42 API client with caching...")
+        client = API42Client(client_id, client_secret, use_cache=True, cache_ttl_hours=24)
         
         # Authenticate
         if not client.authenticate():
             print("Failed to authenticate. Please check your credentials.")
             return
+        
+        # Show cache stats
+        cache_stats = client.get_cache_stats()
+        if cache_stats:
+            print(f"Cache: {cache_stats['total_files']} files, {cache_stats['total_size_mb']} MB")
         
         # Get students from Havre campus
         print(f"\nFetching students from Havre campus (ID: {HAVRE_CAMPUS_ID})...")
@@ -157,13 +204,36 @@ def main():
         students = get_all_students(cursus_users)
         print(f"Found {len(students)} students to analyze")
         
-        # Process each student
+        # Extract user IDs for bulk fetching
+        user_ids = [cu.get('user', {}).get('id') for cu in students if cu.get('user', {}).get('id')]
+        print(f"Extracted {len(user_ids)} valid user IDs")
+        
+        # Bulk fetch projects and locations for all users
+        print("\n" + "=" * 60)
+        print("OPTIMIZED BULK FETCHING")
+        print("=" * 60)
+        
+        projects_map = client.get_projects_users_by_user_map(user_ids)
+        locations_map = client.get_locations_by_user_map(user_ids)
+        
+        print("\n" + "=" * 60)
+        print("PROCESSING STUDENTS")
+        print("=" * 60)
+        
+        # Process each student using pre-fetched data
         results = []
+        python_students = 0
         for i, cursus_user in enumerate(students, 1):
-            print(f"\n[{i}/{len(students)}] ", end="")
-            student_data = process_student(client, cursus_user)
+            user = cursus_user.get('user', {})
+            login = user.get('login', 'unknown')
+            
+            student_data = process_student_optimized(cursus_user, projects_map, locations_map)
             if student_data:
                 results.append(student_data)
+                python_students += 1
+                print(f"[{i}/{len(students)}] {login}: {student_data['total_python_hours']:.2f}h across {len(student_data['python_projects'])} projects")
+            else:
+                print(f"[{i}/{len(students)}] {login}: No Python projects")
         
         # Save results
         output_file = f"python_time_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
@@ -172,14 +242,22 @@ def main():
         
         print("\n" + "=" * 60)
         print(f"Analysis complete!")
-        print(f"Processed {len(results)} students")
+        print(f"Processed {len(students)} students")
+        print(f"Found {python_students} students with Python projects")
         print(f"Results saved to: {output_file}")
+        
+        # Show cache stats again
+        cache_stats = client.get_cache_stats()
+        if cache_stats:
+            print(f"\nCache after run: {cache_stats['total_files']} files, {cache_stats['total_size_mb']} MB")
+        
         print("=" * 60)
         
         # Print summary
         if results:
-            print("\nSummary:")
-            for student in results:
+            print("\nTop 10 Students by Python Hours:")
+            sorted_results = sorted(results, key=lambda x: x['total_python_hours'], reverse=True)[:10]
+            for student in sorted_results:
                 print(f"  {student['login']}: {student['total_python_hours']:.2f} hours across {len(student['python_projects'])} Python projects")
     
     except ValueError as e:

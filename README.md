@@ -2,6 +2,8 @@
 
 A Python application that uses the 42 API to gather and analyze time spent on Python modules by students at the Havre campus (promotion 4).
 
+**Now optimized with caching and bulk data fetching for significantly faster performance!**
+
 ## Features
 
 - 🔐 OAuth2 authentication with 42 API
@@ -10,6 +12,8 @@ A Python application that uses the 42 API to gather and analyze time spent on Py
 - ⏱️ Collects student log time data
 - 📈 Calculates approximate time spent on each Python module
 - 💾 Exports results to JSON format
+- 🚀 **NEW: Optimized bulk data fetching**
+- 💽 **NEW: Intelligent caching system to avoid redundant API calls**
 
 ## Prerequisites
 
@@ -110,6 +114,28 @@ The application generates a JSON file named `python_time_analysis_YYYYMMDD_HHMMS
 
 ## How It Works
 
+### Optimization Strategy
+
+The application now uses an **optimized bulk fetching approach** to minimize API calls:
+
+1. **Fetch all students once**: Gets all cursus_users from the campus with a single paginated request
+2. **Filter in code**: Filters students for Le Havre campus in Python code rather than making individual requests
+3. **Bulk fetch projects**: Retrieves projects for all users efficiently with caching
+4. **Bulk fetch locations**: Retrieves log time data for all users efficiently with caching
+5. **Process in memory**: All data processing happens locally without additional API calls
+
+### Caching System
+
+The application includes an intelligent caching system:
+
+- **Automatic caching**: API responses are automatically cached to disk (`.cache/` directory)
+- **Cache TTL**: Cached data is valid for 24 hours by default (configurable)
+- **Smart cache keys**: Different endpoints and parameters create unique cache entries
+- **Performance boost**: Subsequent runs use cached data, dramatically reducing API calls and execution time
+
+**First run**: Makes all necessary API calls and caches responses
+**Subsequent runs**: Uses cached data (within 24 hours), only fetching what's missing or expired
+
 ### Time Calculation
 
 The application calculates time spent on Python modules by:
@@ -133,18 +159,67 @@ The application calculates time spent on Python modules by:
 
 ```
 PythonTime/
-├── main.py              # Main application entry point
-├── api_client.py        # 42 API client with authentication
+├── main.py              # Main application entry point (optimized)
+├── api_client.py        # 42 API client with caching support
+├── cache_manager.py     # Cache management system
 ├── data_processor.py    # Data processing and analysis logic
+├── test_app.py          # Tests for data processing
+├── test_cache.py        # Tests for caching system
 ├── requirements.txt     # Python dependencies
 ├── .env.example         # Environment variables template
-├── .gitignore          # Git ignore rules
+├── .gitignore          # Git ignore rules (includes .cache/)
 └── README.md           # This file
 ```
 
 ## API Rate Limiting
 
-The application includes basic rate limiting (0.1s delay between paginated requests) to be respectful of the 42 API. If you encounter rate limiting errors, you may need to add additional delays.
+The application includes basic rate limiting (0.1s delay between paginated requests) to be respectful of the 42 API. 
+
+**With the new caching system**, rate limiting is much less of a concern since most data will be served from cache after the first run.
+
+## Cache Management
+
+### Cache Location
+
+Cached data is stored in the `.cache/` directory (automatically created, ignored by git).
+
+### Clear Cache
+
+To force fresh data from the API, you can clear the cache:
+
+```python
+from api_client import API42Client
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+client = API42Client(os.getenv('CLIENT_ID'), os.getenv('CLIENT_SECRET'))
+client.clear_cache()
+```
+
+Or manually delete the `.cache/` directory:
+
+```bash
+rm -rf .cache/
+```
+
+### Disable Caching
+
+If you need to disable caching temporarily:
+
+```python
+# In main.py, change:
+client = API42Client(client_id, client_secret, use_cache=False)
+```
+
+### Adjust Cache TTL
+
+To change how long cached data remains valid:
+
+```python
+# In main.py, change cache_ttl_hours (default is 24):
+client = API42Client(client_id, client_secret, use_cache=True, cache_ttl_hours=48)
+```
 
 ## Troubleshooting
 
@@ -182,6 +257,18 @@ Edit `main.py` and modify the `filter_promotion_4_students()` function to implem
 ### Export to Different Format
 
 Modify the output section in `main.py` to export to CSV, Excel, or other formats.
+
+## Performance
+
+### Before Optimization
+- ~200 students × 2 API calls per student = ~400+ API requests
+- Significant execution time due to API rate limiting
+- No reuse of data between runs
+
+### After Optimization
+- **First run**: Optimized bulk fetching reduces redundant calls
+- **Subsequent runs**: Cached data means near-instant execution (< 1 second for cached data)
+- Dramatically reduced API usage and improved performance
 
 ## License
 
