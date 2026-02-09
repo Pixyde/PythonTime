@@ -14,6 +14,7 @@ A Python application that uses the 42 API to gather and analyze time spent on Py
 - 💾 Exports results to JSON format
 - 🚀 **NEW: Optimized bulk data fetching**
 - 💽 **NEW: Intelligent caching system to avoid redundant API calls**
+- 🎯 **NEW: Filter for new common core Python modules only**
 
 ## Prerequisites
 
@@ -220,6 +221,44 @@ To change how long cached data remains valid:
 # In main.py, change cache_ttl_hours (default is 24):
 client = API42Client(client_id, client_secret, use_cache=True, cache_ttl_hours=48)
 ```
+
+## Filtering for New Common Core
+
+### What is New Common Core?
+
+The "new common core" refers to the updated curriculum with new Python modules. The application can filter to only include these new modules.
+
+### Enable/Disable New Common Core Filter
+
+In `main.py`, set the `USE_NEW_COMMON_CORE_ONLY` constant:
+
+```python
+# Set to True to filter only new common core modules
+USE_NEW_COMMON_CORE_ONLY = True
+
+# Set to False to include all Python projects
+USE_NEW_COMMON_CORE_ONLY = False
+```
+
+### Customize New Common Core Modules
+
+The list of new common core modules is defined in `data_processor.py`. You can customize it for your campus:
+
+```python
+NEW_COMMON_CORE_PYTHON_MODULES = [
+    'python-0-starting',
+    'python-1-base',
+    'python-2-datascience',
+    'python-3-oop',
+    'python-module-00',
+    'python-module-01',
+    # ... add your modules here
+]
+```
+
+The filter checks:
+1. **Project slug/name**: Matches against the module list
+2. **Cursus IDs**: Projects with cursus ID 21 (main common core)
 
 ## Troubleshooting
 

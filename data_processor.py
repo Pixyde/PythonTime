@@ -11,13 +11,66 @@ from collections import defaultdict
 class DataProcessor:
     """Process and analyze 42 API data"""
     
+    # New Common Core Python projects
+    # These are the Python modules specific to the new common core curriculum
+    # Update this list based on your campus's new common core structure
+    NEW_COMMON_CORE_PYTHON_MODULES = [
+        'python-0-starting',
+        'python-1-base',
+        'python-2-datascience',
+        'python-3-oop',
+        'python-module-00',
+        'python-module-01',
+        'python-module-02',
+        'python-module-03',
+        'python-module-04',
+        'piscine-python',
+        'piscine-python-datascience',
+        'django-0-starting',
+        'django-1-base-django',
+        'django-2-sql',
+        'django-3-advanced',
+        'django-4-final',
+    ]
+    
     @staticmethod
-    def filter_python_projects(projects: List[Dict]) -> List[Dict]:
+    def is_new_common_core_project(project: Dict) -> bool:
+        """
+        Check if a project is from the new common core
+        
+        Args:
+            project: Project dictionary
+            
+        Returns:
+            True if project is from new common core, False otherwise
+        """
+        project_slug = project.get('project', {}).get('slug', '').lower()
+        project_name = project.get('project', {}).get('name', '').lower()
+        
+        # Check if slug matches any new common core module
+        for module in DataProcessor.NEW_COMMON_CORE_PYTHON_MODULES:
+            if module.lower() in project_slug or module.lower() in project_name:
+                return True
+        
+        # Additional check: cursus_ids field
+        # New common core projects often have specific cursus IDs
+        cursus_ids = project.get('cursus_ids', [])
+        if cursus_ids:
+            # Cursus ID 21 is typically the main common core
+            # You may need to adjust this based on your campus
+            if 21 in cursus_ids:
+                return True
+        
+        return False
+    
+    @staticmethod
+    def filter_python_projects(projects: List[Dict], new_common_core_only: bool = False) -> List[Dict]:
         """
         Filter projects to only include Python modules
         
         Args:
             projects: List of project dictionaries
+            new_common_core_only: If True, filter to only new common core modules
             
         Returns:
             List of Python projects only
@@ -30,8 +83,15 @@ class DataProcessor:
             project_slug = project.get('project', {}).get('slug', '').lower()
             
             # Check if project name or slug contains Python-related keywords
-            if any(keyword in project_name or keyword in project_slug for keyword in python_keywords):
-                python_projects.append(project)
+            is_python = any(keyword in project_name or keyword in project_slug for keyword in python_keywords)
+            
+            if is_python:
+                # If filtering for new common core only, check if it's a new common core project
+                if new_common_core_only:
+                    if DataProcessor.is_new_common_core_project(project):
+                        python_projects.append(project)
+                else:
+                    python_projects.append(project)
         
         return python_projects
     

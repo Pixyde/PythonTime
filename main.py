@@ -23,6 +23,14 @@ HAVRE_CAMPUS_ID = 14  # This is an example, adjust as needed
 # Cursus ID for 42 cursus
 MAIN_CURSUS_ID = 21
 
+# New Common Core - Filter for only new common core modules
+# The new common core uses a different cursus or has specific identifiers
+# You can filter by:
+# 1. Cursus ID (if new common core has a different cursus ID)
+# 2. Project slugs/names (specific to new common core)
+# 3. Begin date range (new common core started at a specific date)
+USE_NEW_COMMON_CORE_ONLY = True  # Set to True to filter only new common core modules
+
 
 def load_config():
     """Load configuration from .env file"""
@@ -72,7 +80,7 @@ def get_all_students(cursus_users: List[Dict]) -> List[Dict]:
     return students
 
 
-def process_student_optimized(cursus_user: Dict, projects_map: Dict[int, List[Dict]], locations_map: Dict[int, List[Dict]]) -> Dict:
+def process_student_optimized(cursus_user: Dict, projects_map: Dict[int, List[Dict]], locations_map: Dict[int, List[Dict]], new_common_core_only: bool = False) -> Dict:
     """
     Process a single student's data using pre-fetched data maps
     
@@ -80,6 +88,7 @@ def process_student_optimized(cursus_user: Dict, projects_map: Dict[int, List[Di
         cursus_user: Cursus user dictionary
         projects_map: Map of user_id -> projects list
         locations_map: Map of user_id -> locations list
+        new_common_core_only: If True, filter to only new common core modules
         
     Returns:
         Dictionary with student's Python project analysis
@@ -95,8 +104,8 @@ def process_student_optimized(cursus_user: Dict, projects_map: Dict[int, List[Di
     projects = projects_map.get(user_id, [])
     locations = locations_map.get(user_id, [])
     
-    # Filter to Python projects
-    python_projects = DataProcessor.filter_python_projects(projects)
+    # Filter to Python projects (optionally only new common core)
+    python_projects = DataProcessor.filter_python_projects(projects, new_common_core_only=new_common_core_only)
     
     if not python_projects:
         return None
@@ -138,8 +147,8 @@ def process_student(client: API42Client, cursus_user: Dict) -> Dict:
     print(f"  Fetching projects...")
     projects = client.get_user_projects(user_id)
     
-    # Filter to Python projects
-    python_projects = DataProcessor.filter_python_projects(projects)
+    # Filter to Python projects (with new common core filtering if enabled)
+    python_projects = DataProcessor.filter_python_projects(projects, new_common_core_only=USE_NEW_COMMON_CORE_ONLY)
     print(f"  Found {len(python_projects)} Python projects")
     
     if not python_projects:
@@ -218,6 +227,8 @@ def main():
         
         print("\n" + "=" * 60)
         print("PROCESSING STUDENTS")
+        if USE_NEW_COMMON_CORE_ONLY:
+            print("(Filtering for NEW COMMON CORE Python modules only)")
         print("=" * 60)
         
         # Process each student using pre-fetched data
@@ -227,7 +238,12 @@ def main():
             user = cursus_user.get('user', {})
             login = user.get('login', 'unknown')
             
-            student_data = process_student_optimized(cursus_user, projects_map, locations_map)
+            student_data = process_student_optimized(
+                cursus_user, 
+                projects_map, 
+                locations_map,
+                new_common_core_only=USE_NEW_COMMON_CORE_ONLY
+            )
             if student_data:
                 results.append(student_data)
                 python_students += 1
@@ -244,6 +260,8 @@ def main():
         print(f"Analysis complete!")
         print(f"Processed {len(students)} students")
         print(f"Found {python_students} students with Python projects")
+        if USE_NEW_COMMON_CORE_ONLY:
+            print(f"(Filtered for NEW COMMON CORE modules only)")
         print(f"Results saved to: {output_file}")
         
         # Show cache stats again
