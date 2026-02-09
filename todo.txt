@@ -1,5 +1,10 @@
-I need you to create an app that will use the 42 api
-This app will gather data from every promotion 4 student of the havre campuse
-You will gather the start date and the end date of every python module
-You will then gather the log time data of the student
-You will then use the logtime data and the dates to aproximate the time spent on each python module
+This is taking a lot of time
+I have an idea to make it shorter
+I want to gather all data about the project and user seperatly using the global endpoint
+Then parse the data with code rather than request
+Tell me if this would work Can you first fetch all the users of the new common core
+Then parse throuth thoses users to get only thoses that are from the havre
+Then get the data of all users for each python modules
+And then use the 2 data sets to find the data needed
+also cache as much data as possible to avoid re asking the api for data already asked
+also i only want the parse the python modules from the new common core
