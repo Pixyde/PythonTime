@@ -121,68 +121,93 @@ The application generates:
 
 1. **JSON data file**: `python_time_analysis_YYYYMMDD_HHMMSS.json` with detailed user data
 2. **Interactive Dashboard**: `python_time_analysis_YYYYMMDD_HHMMSS_dashboard.html` with comprehensive visualizations
-3. **Static PNG charts**:
-   - `module_average_times.png` - Bar chart of average time per module
-   - `top_students.png` - Bar chart of top 15 users by total hours
-   - `time_distribution.png` - Histogram of time distribution
 
 ### Interactive Dashboard Features
 
-The dashboard is a **Grafana-inspired analytics platform** with professional UI and comprehensive features:
+The dashboard is a **modern, interactive analytics platform** with comprehensive visualizations and customization options:
 
-**🎨 Grafana-Style Design**:
-- **Dark Theme**: Professional Grafana color scheme (#0b0c0e canvas, #111217 primary, #33a2e5 accent)
-- **Panel System**: Organized sections with headers and actions
-- **Responsive Grid**: Auto-adapts to screen size
-- **Professional Typography**: Clean, readable fonts
+**🎨 Modern Design**:
+- **Gradient Theme**: Beautiful purple gradient background with clean white panels
+- **Responsive Grid**: Auto-adapts to screen size for mobile, tablet, and desktop
+- **Professional Typography**: Clean, readable fonts with clear hierarchy
+- **Smooth Interactions**: Hover effects and smooth transitions
 
-**🔧 Toolbar & Controls**:
-- **Time Range Picker**: Select date ranges (UI ready for "Last 30 days", custom ranges)
-- **Variable Selectors**: Module and Status dropdowns
-- **Quick Filters**: Top 10, Completed, Reset buttons
-- **Auto-Refresh**: Off / 30s / 1m / 5m options
+**🎛️ Global Filters & Controls**:
+- **Status Filter**: Filter by finished/in_progress/waiting projects
+- **Validated Only**: Toggle to show only validated projects
+- **Hours Threshold Slider**: Minimum hours filter (0-200h)
+- **Score Range Slider**: Minimum score filter (0-100)
+- **Top N Users Slider**: Control how many top users to display (5-50)
+- **Reset Button**: Quick reset to default filter values
 
-**📊 Statistics Overview** (4 stat panels):
-- Total Users 👥 - Unique user count
+**📊 KPI Cards** (4 key metrics at a glance):
+- Total Users 👥 - Count of unique users
 - Total Hours ⏱️ - Sum of all time spent
-- Avg Hours/User 📊 - Mean per user
-- Completion Rate ✅ - % of finished projects
+- Avg Hours/User 📊 - Mean hours per user
+- Completion Rate ✅ - Percentage of finished projects
 
-**📈 Interactive Charts** (4 panels with full controls):
-1. **Top Users by Hours** 👑 - Bar chart of top 15 students
-2. **Module Average Times** 📚 - Horizontal bar chart per module
-3. **Status Distribution** 📈 - Doughnut chart of project status
-4. **Time Distribution** ⏰ - Histogram of hour ranges
+**📈 Interactive Visualizations** (6 comprehensive chart types):
 
-**Panel Features**:
-- Individual panel actions (Refresh, Export, Fullscreen)
-- Hover interactions
-- Click to fullscreen mode
-- Export charts as PNG
+1. **👑 Top Users by Total Hours** - Bar chart of top users
+   - Dynamically adjusts based on "Top N Users" slider
+   - Shows total hours per user
+   - Export to PNG
+
+2. **📚 Average Time per Module** - Horizontal bar chart
+   - Shows average time spent on each Python module
+   - Sorted by time (highest first)
+   - Displays top 15 modules
+   - Export to PNG
+
+3. **📈 Project Status Distribution** - Doughnut chart
+   - Visual breakdown of finished/in_progress/waiting projects
+   - Interactive legend
+   - Export to PNG
+
+4. **⏰ Hours Distribution** - Histogram
+   - Distribution of total hours across all users
+   - 20 bins showing frequency
+   - Export to PNG
+
+5. **🎯 Hours vs Final Score** - Scatter plot
+   - Relationship between time spent and scores achieved
+   - Each point is a project
+   - Hover shows user, project, hours, and score
+   - Export to PNG
+
+6. **⚡ Efficiency Score** - Bar chart showing score per hour ratio
+   - Top 20 most efficient users
+   - Shows points earned per hour spent
+   - Helps identify productive students
+   - Export to PNG
 
 **📋 Detailed Data Table**:
-- Student rankings sorted by hours
-- Comprehensive stats (projects, hours, averages)
-- Completion rate badges
-- Export ready (CSV export button)
+- **Sortable Columns**: Click column headers to sort
+- **Search Functionality**: Real-time search filter for users
+- **Comprehensive Stats**: 
+  - Rank (by total hours)
+  - User login
+  - Project count
+  - Total hours
+  - Average hours per project
+  - Average score
+  - Completion percentage with color-coded badges
+- **Export to CSV**: Download filtered data
 
-**🔄 Real-Time Features**:
-- Filters apply instantly
-- Auto-refresh options
-- Toast notifications for actions
-- Smooth transitions
+**✨ Interactive Features**:
+- All filters apply instantly across all visualizations
+- Charts update dynamically based on filter selections
+- Export individual charts as PNG images
+- Export table data as CSV
+- Hover tooltips on all chart elements
+- Responsive layout adapts to screen size
+- Smooth animations and transitions
 
-**✨ Professional UX**:
-- Grafana-style panels and cards
-- Loading states
-- Empty state messages
-- Toast notifications (Success/Error/Info)
-- Keyboard navigation ready
-- Mobile responsive
-- Sortable columns with rankings
-- Module count per user
-- Color-coded status badges
-- Export filtered data to JSON
+**🎨 Color-Coded Elements**:
+- Completion Rate Badges:
+  - 🟢 Green (≥75%): High completion
+  - 🟡 Yellow (50-74%): Medium completion
+  - 🔴 Red (<50%): Low completion
 
 **To view**: Simply open the `*_dashboard.html` file in any modern web browser!
 
@@ -334,18 +359,16 @@ The application calculates time spent on Python modules by:
 
 ```
 PythonTime/
-├── main.py                # Main application entry point (optimized)
-├── api_client.py          # 42 API client with caching support
-├── cache_manager.py       # Cache management system
-├── cache_util.py          # Cache management utility CLI
-├── data_processor.py      # Data processing and analysis logic
-├── test_app.py            # Tests for data processing
-├── test_cache.py          # Tests for caching system
-├── test_project_users.py  # Tests for project users endpoint
-├── requirements.txt       # Python dependencies
-├── .env.example           # Environment variables template
-├── .gitignore            # Git ignore rules (includes .cache/)
-└── README.md             # This file
+├── main.py                  # Main application entry point
+├── api_client.py            # 42 API client with caching support
+├── cache_manager.py         # Cache management system
+├── cache_util.py            # Cache management utility CLI
+├── data_processor.py        # Data processing and analysis logic
+├── dashboard_generator.py   # Modern interactive dashboard generator
+├── requirements.txt         # Python dependencies
+├── .env.example            # Environment variables template
+├── .gitignore              # Git ignore rules (includes .cache/)
+└── README.md               # This file
 ```
 
 ## API Rate Limiting
