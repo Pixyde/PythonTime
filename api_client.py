@@ -300,26 +300,40 @@ class API42Client:
         
         return projects_by_user
     
-    def get_locations_by_user_map(self, user_ids: List[int]) -> Dict[int, List[Dict]]:
+    def get_locations_by_user_map(self, user_ids: List[int], begin_at: Optional[str] = None, end_at: Optional[str] = None) -> Dict[int, List[Dict]]:
         """
         Get locations for multiple users and return as a map
         
         Args:
             user_ids: List of user IDs
+            begin_at: Optional start date filter (ISO format)
+            end_at: Optional end date filter (ISO format)
             
         Returns:
             Dictionary mapping user_id -> list of locations
         """
         print(f"Fetching locations for {len(user_ids)} users...")
+        if begin_at or end_at:
+            date_range = []
+            if begin_at:
+                date_range.append(f"from {begin_at}")
+            if end_at:
+                date_range.append(f"to {end_at}")
+            print(f"  Date range filter: {' '.join(date_range)}")
         
         # Create a map to store locations by user
         locations_by_user = {user_id: [] for user_id in user_ids}
         
         # Check cache for each user first
         users_needing_fetch = []
+        cache_key_params = {'paginated': 'all'}
+        if begin_at:
+            cache_key_params['range[begin_at]'] = begin_at
+        if end_at:
+            cache_key_params['range[end_at]'] = end_at
+            
         for user_id in user_ids:
             endpoint = f"/v2/users/{user_id}/locations"
-            cache_key_params = {'paginated': 'all'}
             if self.cache:
                 cached_data = self.cache.get(endpoint, cache_key_params)
                 if cached_data is not None:
@@ -335,7 +349,7 @@ class API42Client:
             for i, user_id in enumerate(users_needing_fetch, 1):
                 if i % 50 == 0:
                     print(f"    Progress: {i}/{len(users_needing_fetch)}")
-                locations = self.get_user_locations(user_id)
+                locations = self.get_user_locations(user_id, begin_at, end_at)
                 locations_by_user[user_id] = locations
         else:
             print("  All data from cache!")

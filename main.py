@@ -31,6 +31,16 @@ MAIN_CURSUS_ID = 21
 # 3. Begin date range (new common core started at a specific date)
 USE_NEW_COMMON_CORE_ONLY = True  # Set to True to filter only new common core modules
 
+# API Call Optimization Settings
+# Set to limit student processing (useful for testing)
+MAX_STUDENTS = None  # Set to a number (e.g., 50) to limit, or None for all students
+
+# Date range for location data (reduces API response size)
+# Set to None to fetch all location history
+# Example: LOCATION_BEGIN_DATE = "2024-01-01T00:00:00Z"
+LOCATION_BEGIN_DATE = None  # Start date for location data (ISO format)
+LOCATION_END_DATE = None    # End date for location data (ISO format)
+
 
 def load_config():
     """Load configuration from .env file"""
@@ -156,7 +166,7 @@ def process_student(client: API42Client, cursus_user: Dict) -> Dict:
     
     # Get log time data
     print(f"  Fetching log time data...")
-    locations = client.get_user_locations(user_id)
+    locations = client.get_user_locations(user_id, LOCATION_BEGIN_DATE, LOCATION_END_DATE)
     print(f"  Found {len(locations)} log entries")
     
     # Analyze time spent on Python projects
@@ -211,6 +221,12 @@ def main():
         # Get all students (adjust filter logic as needed for promotion 4)
         print(f"Filtering students...")
         students = get_all_students(cursus_users)
+        
+        # Apply MAX_STUDENTS limit if configured
+        if MAX_STUDENTS and len(students) > MAX_STUDENTS:
+            print(f"Limiting to first {MAX_STUDENTS} students (MAX_STUDENTS setting)")
+            students = students[:MAX_STUDENTS]
+        
         print(f"Found {len(students)} students to analyze")
         
         # Extract user IDs for bulk fetching
@@ -223,7 +239,11 @@ def main():
         print("=" * 60)
         
         projects_map = client.get_projects_users_by_user_map(user_ids)
-        locations_map = client.get_locations_by_user_map(user_ids)
+        locations_map = client.get_locations_by_user_map(
+            user_ids, 
+            begin_at=LOCATION_BEGIN_DATE,
+            end_at=LOCATION_END_DATE
+        )
         
         print("\n" + "=" * 60)
         print("PROCESSING STUDENTS")

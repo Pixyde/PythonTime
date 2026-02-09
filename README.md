@@ -117,13 +117,32 @@ The application generates a JSON file named `python_time_analysis_YYYYMMDD_HHMMS
 
 ### Optimization Strategy
 
-The application now uses an **optimized bulk fetching approach** to minimize API calls:
+The application uses an **optimized bulk fetching approach** to minimize API calls:
 
 1. **Fetch all students once**: Gets all cursus_users from the campus with a single paginated request
 2. **Filter in code**: Filters students for Le Havre campus in Python code rather than making individual requests
 3. **Bulk fetch projects**: Retrieves projects for all users efficiently with caching
-4. **Bulk fetch locations**: Retrieves log time data for all users efficiently with caching
+4. **Bulk fetch locations**: Retrieves log time data for all users efficiently with caching (with optional date range filtering)
 5. **Process in memory**: All data processing happens locally without additional API calls
+
+### API Call Optimization Options
+
+You can further reduce API calls by configuring these settings in `main.py`:
+
+```python
+# Limit number of students (useful for testing)
+MAX_STUDENTS = 50  # Set to None to process all students
+
+# Filter location data by date range (reduces response size)
+LOCATION_BEGIN_DATE = "2024-01-01T00:00:00Z"  # Optional start date
+LOCATION_END_DATE = "2024-12-31T23:59:59Z"    # Optional end date
+```
+
+**Benefits of date filtering:**
+- Reduces API response size significantly (e.g., 1 year vs entire history)
+- Faster API responses
+- Lower memory usage
+- More focused analysis on recent activity
 
 ### Caching System
 
