@@ -46,3 +46,6 @@ Thumbs.db
 python_time_analysis_*.json
 demo_output.json
 output/
+
+# Cache directory
+.cache/

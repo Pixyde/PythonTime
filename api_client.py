@@ -8,6 +8,7 @@ import time
 import os
 from typing import Dict, List, Optional
 from datetime import datetime
+from cache_manager import CacheManager
 
 
 class API42Client:
@@ -16,18 +17,22 @@ class API42Client:
     BASE_URL = "https://api.intra.42.fr"
     TOKEN_REFRESH_BUFFER_SECONDS = 60  # Refresh token 60 seconds before expiry
     
-    def __init__(self, client_id: str, client_secret: str):
+    def __init__(self, client_id: str, client_secret: str, use_cache: bool = True, cache_ttl_hours: int = 24):
         """
         Initialize the 42 API client
         
         Args:
             client_id: OAuth2 client ID
             client_secret: OAuth2 client secret
+            use_cache: Whether to use caching (default: True)
+            cache_ttl_hours: Cache time-to-live in hours (default: 24)
         """
         self.client_id = client_id
         self.client_secret = client_secret
         self.access_token = None
         self.token_expires_at = 0
+        self.use_cache = use_cache
+        self.cache = CacheManager(cache_ttl_hours=cache_ttl_hours) if use_cache else None
         
     def authenticate(self) -> bool:
         """
@@ -63,17 +68,24 @@ class API42Client:
         if not self.access_token or time.time() >= self.token_expires_at - self.TOKEN_REFRESH_BUFFER_SECONDS:
             self.authenticate()
     
-    def _make_request(self, endpoint: str, params: Optional[Dict] = None) -> Optional[Dict]:
+    def _make_request(self, endpoint: str, params: Optional[Dict] = None, use_cache: bool = True) -> Optional[Dict]:
         """
         Make an authenticated request to the API
         
         Args:
             endpoint: API endpoint (without base URL)
             params: Query parameters
+            use_cache: Whether to use cache for this request (default: True)
             
         Returns:
             Response data as dictionary, or None if request failed
         """
+        # Check cache first
+        if use_cache and self.cache:
+            cached_data = self.cache.get(endpoint, params)
+            if cached_data is not None:
+                return cached_data
+        
         self._ensure_authenticated()
         
         url = f"{self.BASE_URL}{endpoint}"
@@ -82,30 +94,47 @@ class API42Client:
         try:
             response = requests.get(url, headers=headers, params=params)
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            
+            # Cache the response
+            if use_cache and self.cache:
+                self.cache.set(endpoint, data, params)
+            
+            return data
         except requests.exceptions.RequestException as e:
             print(f"✗ Request failed for {endpoint}: {e}")
             return None
     
-    def _make_paginated_request(self, endpoint: str, params: Optional[Dict] = None) -> List[Dict]:
+    def _make_paginated_request(self, endpoint: str, params: Optional[Dict] = None, use_cache: bool = True) -> List[Dict]:
         """
         Make a paginated request to the API, fetching all pages
         
         Args:
             endpoint: API endpoint (without base URL)
             params: Query parameters
+            use_cache: Whether to use cache for this request (default: True)
             
         Returns:
             List of all items from all pages
         """
+        # For paginated requests, create a cache key that includes all pages
+        params = params or {}
+        cache_key_params = {**params, 'paginated': 'all'}
+        
+        # Check if we have the full paginated result cached
+        if use_cache and self.cache:
+            cached_data = self.cache.get(endpoint, cache_key_params)
+            if cached_data is not None:
+                return cached_data
+        
         all_items = []
         page = 1
-        params = params or {}
         params["page[size]"] = 100  # Max items per page
         
         while True:
             params["page[number]"] = page
-            data = self._make_request(endpoint, params)
+            # Don't use cache for individual pages, we cache the full result
+            data = self._make_request(endpoint, params, use_cache=False)
             
             if not data:
                 break
@@ -124,27 +153,65 @@ class API42Client:
             page += 1
             time.sleep(0.1)  # Rate limiting courtesy
         
+        # Cache the complete paginated result
+        if use_cache and self.cache:
+            self.cache.set(endpoint, all_items, cache_key_params)
+        
         return all_items
+    
+    def get_campuses(self) -> List[Dict]:
+        """
+        Get list of all available campuses
+        
+        Returns:
+            List of campus dictionaries with id, name, city, country, etc.
+        """
+        print("Fetching available campuses...")
+        campuses = self._make_paginated_request("/v2/campus")
+        print(f"✓ Found {len(campuses)} campuses")
+        return campuses
     
     def get_campus_users(self, campus_id: int, cursus_id: int = 21) -> List[Dict]:
         """
         Get all users from a specific campus and cursus
+        
+        Uses the cursus_users endpoint with filters for correct data retrieval.
         
         Args:
             campus_id: Campus ID (e.g., Havre campus)
             cursus_id: Cursus ID (21 is typically the main 42 cursus)
             
         Returns:
-            List of user dictionaries
+            List of cursus_user dictionaries with user and cursus information
         """
-        print(f"Fetching users from campus {campus_id}...")
+        print(f"Fetching users from campus {campus_id} (cursus {cursus_id})...")
+        
+        # Use cursus_users endpoint with campus and cursus filters
+        # This ensures we get the cursus-specific data populated
         params = {
             "filter[campus_id]": campus_id,
             "filter[cursus_id]": cursus_id,
         }
-        users = self._make_paginated_request("/v2/cursus_users", params)
-        print(f"✓ Found {len(users)} users")
-        return users
+        cursus_users = self._make_paginated_request("/v2/cursus_users", params)
+        
+        print(f"✓ Found {len(cursus_users)} users in cursus {cursus_id}")
+        return cursus_users
+    
+    def get_cursus_projects(self, cursus_id: int = 21) -> List[Dict]:
+        """
+        Get all projects for a specific cursus
+        
+        Args:
+            cursus_id: Cursus ID (21 is typically the main 42 cursus)
+            
+        Returns:
+            List of project dictionaries
+        """
+        print(f"Fetching projects for cursus {cursus_id}...")
+        endpoint = f"/v2/cursus/{cursus_id}/projects"
+        projects = self._make_paginated_request(endpoint)
+        print(f"✓ Found {len(projects)} projects")
+        return projects
     
     def get_user_projects(self, user_id: int) -> List[Dict]:
         """
@@ -180,15 +247,157 @@ class API42Client:
         endpoint = f"/v2/users/{user_id}/locations"
         return self._make_paginated_request(endpoint, params)
     
-    def get_project_details(self, project_id: int) -> Optional[Dict]:
+    def get_project_users(self, project_id: int) -> List[Dict]:
         """
-        Get details for a specific project
+        Get all users who have worked on a specific project
+        
+        This is more efficient than fetching all projects for every user
+        when you want to know which users completed a specific project.
         
         Args:
             project_id: Project ID
             
         Returns:
-            Project details dictionary
+            List of users_projects dictionaries for users who worked on this project
         """
-        endpoint = f"/v2/projects/{project_id}"
-        return self._make_request(endpoint)
+        print(f"Fetching users for project {project_id}...")
+        endpoint = f"/v2/projects/{project_id}/projects_users"
+        users = self._make_paginated_request(endpoint)
+        print(f"✓ Found {len(users)} users who worked on this project")
+        return users
+    
+    def has_user_completed_project(self, user_id: int, project_id: int) -> Optional[Dict]:
+        """
+        Check if a specific user has completed a specific project
+        
+        This uses the efficient project users endpoint to avoid fetching
+        all projects for all users.
+        
+        Args:
+            user_id: User ID
+            project_id: Project ID
+            
+        Returns:
+            Project user entry if user worked on the project, None otherwise
+        """
+        project_users = self.get_project_users(project_id)
+        
+        # Find the user in the project users list
+        for project_user in project_users:
+            if project_user.get('user', {}).get('id') == user_id:
+                return project_user
+        
+        return None
+    
+
+    def get_projects_users_by_user_map(self, user_ids: List[int]) -> Dict[int, List[Dict]]:
+        """
+        Get projects for multiple users and return as a map
+        
+        This uses bulk fetching and organizes data by user ID for easy lookup.
+        
+        Args:
+            user_ids: List of user IDs
+            
+        Returns:
+            Dictionary mapping user_id -> list of projects
+        """
+        print(f"Fetching projects for {len(user_ids)} users...")
+        
+        # Create a map to store projects by user
+        projects_by_user = {user_id: [] for user_id in user_ids}
+        
+        # Check cache for each user first
+        users_needing_fetch = []
+        for user_id in user_ids:
+            endpoint = f"/v2/users/{user_id}/projects_users"
+            cache_key_params = {'paginated': 'all'}
+            if self.cache:
+                cached_data = self.cache.get(endpoint, cache_key_params)
+                if cached_data is not None:
+                    projects_by_user[user_id] = cached_data
+                else:
+                    users_needing_fetch.append(user_id)
+            else:
+                users_needing_fetch.append(user_id)
+        
+        # Fetch projects for users not in cache
+        if users_needing_fetch:
+            print(f"  Fetching from API for {len(users_needing_fetch)} users (others from cache)...")
+            for i, user_id in enumerate(users_needing_fetch, 1):
+                if i % 50 == 0:
+                    print(f"    Progress: {i}/{len(users_needing_fetch)}")
+                projects = self.get_user_projects(user_id)
+                projects_by_user[user_id] = projects
+        else:
+            print("  All data from cache!")
+        
+        return projects_by_user
+    
+    def get_locations_by_user_map(self, user_ids: List[int], begin_at: Optional[str] = None, end_at: Optional[str] = None) -> Dict[int, List[Dict]]:
+        """
+        Get locations for multiple users and return as a map
+        
+        Args:
+            user_ids: List of user IDs
+            begin_at: Optional start date filter (ISO format)
+            end_at: Optional end date filter (ISO format)
+            
+        Returns:
+            Dictionary mapping user_id -> list of locations
+        """
+        print(f"Fetching locations for {len(user_ids)} users...")
+        if begin_at or end_at:
+            date_range = []
+            if begin_at:
+                date_range.append(f"from {begin_at}")
+            if end_at:
+                date_range.append(f"to {end_at}")
+            print(f"  Date range filter: {' '.join(date_range)}")
+        
+        # Create a map to store locations by user
+        locations_by_user = {user_id: [] for user_id in user_ids}
+        
+        # Check cache for each user first
+        users_needing_fetch = []
+        cache_key_params = {'paginated': 'all'}
+        if begin_at:
+            cache_key_params['range[begin_at]'] = begin_at
+        if end_at:
+            cache_key_params['range[end_at]'] = end_at
+            
+        for user_id in user_ids:
+            endpoint = f"/v2/users/{user_id}/locations"
+            if self.cache:
+                cached_data = self.cache.get(endpoint, cache_key_params)
+                if cached_data is not None:
+                    locations_by_user[user_id] = cached_data
+                else:
+                    users_needing_fetch.append(user_id)
+            else:
+                users_needing_fetch.append(user_id)
+        
+        # Fetch locations for users not in cache
+        if users_needing_fetch:
+            print(f"  Fetching from API for {len(users_needing_fetch)} users (others from cache)...")
+            for i, user_id in enumerate(users_needing_fetch, 1):
+                if i % 50 == 0:
+                    print(f"    Progress: {i}/{len(users_needing_fetch)}")
+                locations = self.get_user_locations(user_id, begin_at, end_at)
+                locations_by_user[user_id] = locations
+        else:
+            print("  All data from cache!")
+        
+        return locations_by_user
+    
+    def clear_cache(self):
+        """Clear all cached data"""
+        if self.cache:
+            self.cache.clear()
+            print("✓ Cache cleared")
+    
+    def get_cache_stats(self) -> Optional[Dict]:
+        """Get cache statistics"""
+        if self.cache:
+            return self.cache.get_cache_stats()
+        return None

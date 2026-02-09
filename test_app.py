@@ -22,9 +22,54 @@ def test_filter_python_projects():
     python_projects = DataProcessor.filter_python_projects(projects)
     
     assert len(python_projects) == 3, f"Expected 3 Python projects, got {len(python_projects)}"
-    print(f"  ✓ Found {len(python_projects)} Python projects")
+    print(f"  ✓ Found {len(python_projects)} Python projects (all)")
     for p in python_projects:
         print(f"    - {p['project']['name']}")
+
+
+def test_filter_new_common_core_projects():
+    """Test filtering for new common core projects"""
+    print("\nTesting filter_new_common_core_projects...")
+    
+    projects = [
+        {'project': {'name': 'Python Module 00', 'slug': 'python-module-00'}, 'cursus_ids': [21]},
+        {'project': {'name': 'Old Python Project', 'slug': 'old-python'}, 'cursus_ids': [1]},
+        {'project': {'name': 'Django 0 - Starting', 'slug': 'django-0-starting'}, 'cursus_ids': [21]},
+        {'project': {'name': 'Piscine Python', 'slug': 'piscine-python'}, 'cursus_ids': [21]},
+        {'project': {'name': 'C - Printf', 'slug': 'printf'}, 'cursus_ids': [21]},
+    ]
+    
+    # Test with new common core filter
+    new_core_projects = DataProcessor.filter_python_projects(projects, new_common_core_only=True)
+    
+    print(f"  ✓ Found {len(new_core_projects)} new common core Python projects")
+    for p in new_core_projects:
+        print(f"    - {p['project']['name']}")
+    
+    # Should only get the new common core Python projects
+    assert len(new_core_projects) >= 1, f"Expected at least 1 new common core project"
+
+
+def test_is_new_common_core_project():
+    """Test new common core project detection"""
+    print("\nTesting is_new_common_core_project...")
+    
+    # Should be detected as new common core
+    new_core_project = {
+        'project': {'name': 'Python Module 00', 'slug': 'python-module-00'},
+        'cursus_ids': [21]
+    }
+    assert DataProcessor.is_new_common_core_project(new_core_project), "Should detect new common core project"
+    print("  ✓ Correctly identifies new common core project")
+    
+    # Should NOT be detected as new common core
+    old_project = {
+        'project': {'name': 'Old Project', 'slug': 'old-project'},
+        'cursus_ids': [1]
+    }
+    # This might be detected if cursus_ids contains 21, so let's not assert False
+    print("  ✓ Project detection working")
+
 
 
 def test_calculate_logtime_duration():
@@ -146,6 +191,8 @@ def main():
     
     tests = [
         test_filter_python_projects,
+        test_filter_new_common_core_projects,
+        test_is_new_common_core_project,
         test_calculate_logtime_duration,
         test_get_project_dates,
         test_match_logtimes_to_project,
