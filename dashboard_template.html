@@ -345,6 +345,22 @@
                 <div class="stat-label">Completion Rate</div>
                 <div class="stat-value" id="completionRate">0%</div>
             </div>
+            <div class="stat-card">
+                <div class="stat-label">C++ Projects</div>
+                <div class="stat-value" id="cppProjects">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Web Projects</div>
+                <div class="stat-value" id="webProjects">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Speed Champion</div>
+                <div class="stat-value" id="speedChampion" style="font-size: 1.5em;">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Time/Project</div>
+                <div class="stat-value" id="avgTimePerProject">0h</div>
+            </div>
         </div>
 
         <div class="controls">
@@ -439,9 +455,21 @@
                 </div>
             </div>
             <div class="chart-card">
+                <h3 class="chart-title">⚡ Fastest Finishers (Speed Runners)</h3>
+                <div class="chart-container">
+                    <canvas id="speedRunnersChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
                 <h3 class="chart-title">📚 Module Average Times</h3>
                 <div class="chart-container">
                     <canvas id="moduleTimesChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3 class="chart-title">🌐 Projects by Language</h3>
+                <div class="chart-container">
+                    <canvas id="languageChart"></canvas>
                 </div>
             </div>
             <div class="chart-card full-width">
@@ -472,6 +500,12 @@
                 <h3 class="chart-title">🏆 Completion Rate by Module</h3>
                 <div class="chart-container">
                     <canvas id="completionRateChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3 class="chart-title">💪 Project Difficulty (Time vs Completion)</h3>
+                <div class="chart-container">
+                    <canvas id="difficultyChart"></canvas>
                 </div>
             </div>
         </div>
@@ -569,10 +603,45 @@
             let totalProjects = 0;
             let finishedProjects = 0;
             
+            // Enhanced language tracking
+            const languageStats = {
+                python: 0,
+                cpp: 0,
+                web: 0,
+                other: 0
+            };
+            
+            // Speed tracking
+            let fastestUser = null;
+            let fastestAvgTime = Infinity;
+            
             filteredData.forEach(user => {
+                const userProjects = user.python_projects.length;
+                const userTime = user.total_python_hours;
+                const avgTimePerProject = userProjects > 0 ? userTime / userProjects : Infinity;
+                
+                if (userProjects > 0 && avgTimePerProject < fastestAvgTime) {
+                    fastestAvgTime = avgTimePerProject;
+                    fastestUser = user.login;
+                }
+                
                 user.python_projects.forEach(project => {
+                    const name = project.project_name.toLowerCase();
                     projectSet.add(project.project_name);
                     totalProjects++;
+                    
+                    // Categorize by language
+                    if (name.includes('python') || name.includes('django')) {
+                        languageStats.python++;
+                    } else if (name.includes('c++') || name.includes('cpp') || name.includes('libft') || 
+                               name.includes('ft_printf') || name.includes('push_swap') || name.includes('philosophers')) {
+                        languageStats.cpp++;
+                    } else if (name.includes('webserv') || name.includes('inception') || name.includes('ft_transcendence')) {
+                        languageStats.web++;
+                    } else {
+                        languageStats.other++;
+                    }
+                    
                     if (project.status === 'finished') {
                         completedProjects.add(project.project_name);
                         finishedProjects++;
@@ -581,23 +650,31 @@
             });
 
             const completionRate = totalProjects > 0 ? (finishedProjects / totalProjects * 100) : 0;
+            const avgTimePerProject = totalProjects > 0 ? totalHours / totalProjects : 0;
 
             document.getElementById('totalUsers').textContent = totalUsers;
             document.getElementById('filteredUsers').textContent = filteredUsers;
             document.getElementById('totalHours').textContent = totalHours.toFixed(1);
             document.getElementById('avgHours').textContent = avgHours.toFixed(1);
-            document.getElementById('totalProjects').textContent = projectSet.size;
+            document.getElementById('totalProjects').textContent = languageStats.python;
             document.getElementById('completionRate').textContent = completionRate.toFixed(1) + '%';
+            document.getElementById('cppProjects').textContent = languageStats.cpp;
+            document.getElementById('webProjects').textContent = languageStats.web;
+            document.getElementById('speedChampion').textContent = fastestUser || '-';
+            document.getElementById('avgTimePerProject').textContent = avgTimePerProject.toFixed(1) + 'h';
         }
 
         function createCharts() {
             createTopUsersChart();
+            createSpeedRunnersChart();
             createModuleTimesChart();
+            createLanguageChart();
             createDistributionChart();
             createStatusChart();
             createModuleCountChart();
             createProgressionChart();
             createCompletionRateChart();
+            createDifficultyChart();
         }
 
         function createTopUsersChart() {
@@ -628,6 +705,191 @@
                         y: {
                             beginAtZero: true,
                             title: { display: true, text: 'Hours' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createSpeedRunnersChart() {
+            const ctx = document.getElementById('speedRunnersChart');
+            
+            // Calculate average time per project for each user
+            const userSpeeds = filteredData
+                .filter(u => u.python_projects.length > 0)
+                .map(u => ({
+                    login: u.login,
+                    avgTime: u.total_python_hours / u.python_projects.length,
+                    projects: u.python_projects.length
+                }))
+                .filter(u => u.projects >= 2) // At least 2 projects to be meaningful
+                .sort((a, b) => a.avgTime - b.avgTime)
+                .slice(0, 15);
+            
+            if (charts.speedRunners) charts.speedRunners.destroy();
+            
+            charts.speedRunners = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: userSpeeds.map(u => u.login),
+                    datasets: [{
+                        label: 'Avg Hours/Project',
+                        data: userSpeeds.map(u => u.avgTime),
+                        backgroundColor: 'rgba(255, 193, 7, 0.8)',
+                        borderColor: 'rgba(255, 193, 7, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const idx = context.dataIndex;
+                                    return `Projects: ${userSpeeds[idx].projects}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Avg Hours per Project' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createLanguageChart() {
+            const ctx = document.getElementById('languageChart');
+            
+            const languageStats = {
+                'Python': 0,
+                'C++/C': 0,
+                'Web/System': 0,
+                'Other': 0
+            };
+            
+            filteredData.forEach(user => {
+                user.python_projects.forEach(project => {
+                    const name = project.project_name.toLowerCase();
+                    if (name.includes('python') || name.includes('django')) {
+                        languageStats['Python']++;
+                    } else if (name.includes('c++') || name.includes('cpp') || name.includes('libft') || 
+                               name.includes('ft_printf') || name.includes('push_swap') || name.includes('philosophers') ||
+                               name.includes('minishell') || name.includes('cub3d')) {
+                        languageStats['C++/C']++;
+                    } else if (name.includes('webserv') || name.includes('inception') || name.includes('ft_transcendence') ||
+                               name.includes('born2beroot') || name.includes('netpractice')) {
+                        languageStats['Web/System']++;
+                    } else {
+                        languageStats['Other']++;
+                    }
+                });
+            });
+            
+            if (charts.language) charts.language.destroy();
+            
+            charts.language = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(languageStats),
+                    datasets: [{
+                        data: Object.values(languageStats),
+                        backgroundColor: [
+                            'rgba(102, 126, 234, 0.8)',
+                            'rgba(244, 67, 54, 0.8)',
+                            'rgba(76, 175, 80, 0.8)',
+                            'rgba(255, 152, 0, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        function createDifficultyChart() {
+            const ctx = document.getElementById('difficultyChart');
+            
+            // Calculate difficulty: avg time vs completion rate
+            const projectStats = {};
+            
+            filteredData.forEach(user => {
+                user.python_projects.forEach(project => {
+                    const name = project.project_name;
+                    if (!projectStats[name]) {
+                        projectStats[name] = {
+                            attempts: 0,
+                            finished: 0,
+                            totalTime: 0
+                        };
+                    }
+                    projectStats[name].attempts++;
+                    projectStats[name].totalTime += project.time_spent_hours;
+                    if (project.status === 'finished') {
+                        projectStats[name].finished++;
+                    }
+                });
+            });
+            
+            const projectData = Object.entries(projectStats)
+                .filter(([_, stats]) => stats.attempts >= 3)
+                .map(([name, stats]) => ({
+                    name: name,
+                    avgTime: stats.totalTime / stats.attempts,
+                    completionRate: (stats.finished / stats.attempts) * 100
+                }))
+                .slice(0, 20);
+            
+            if (charts.difficulty) charts.difficulty.destroy();
+            
+            charts.difficulty = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Projects',
+                        data: projectData.map(p => ({
+                            x: p.avgTime,
+                            y: p.completionRate,
+                            label: p.name
+                        })),
+                        backgroundColor: 'rgba(156, 39, 176, 0.6)',
+                        borderColor: 'rgba(156, 39, 176, 1)',
+                        borderWidth: 2,
+                        pointRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${projectData[context.dataIndex].name}: ${context.parsed.x.toFixed(1)}h, ${context.parsed.y.toFixed(1)}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Average Time (hours)' },
+                            beginAtZero: true
+                        },
+                        y: {
+                            title: { display: true, text: 'Completion Rate (%)' },
+                            beginAtZero: true,
+                            max: 100
                         }
                     }
                 }
