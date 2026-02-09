@@ -9,7 +9,6 @@ import os
 import json
 from typing import Dict, List, Optional, Any
 from datetime import datetime
-from pathlib import Path
 
 
 class API42Client:
@@ -18,22 +17,19 @@ class API42Client:
     BASE_URL = "https://api.intra.42.fr"
     TOKEN_REFRESH_BUFFER_SECONDS = 60  # Refresh token 60 seconds before expiry
     
-    def __init__(self, client_id: str, client_secret: str, cache_dir: str = ".cache"):
+    def __init__(self, client_id: str, client_secret: str):
         """
         Initialize the 42 API client
         
         Args:
             client_id: OAuth2 client ID
             client_secret: OAuth2 client secret
-            cache_dir: Directory to store cached responses
         """
         self.client_id = client_id
         self.client_secret = client_secret
         self.access_token = None
         self.token_expires_at = 0
-        self.cache_dir = Path(cache_dir)
-        self.cache_dir.mkdir(exist_ok=True)
-        self._cache = {}
+        self._cache = {}  # In-memory cache for API responses
         
     def authenticate(self) -> bool:
         """

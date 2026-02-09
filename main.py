@@ -124,55 +124,6 @@ def process_student_with_cached_data(
     }
 
 
-def process_student(client: API42Client, cursus_user: Dict) -> Dict:
-    """
-    Process a single student's data
-    
-    Args:
-        client: API client instance
-        cursus_user: Cursus user dictionary
-        
-    Returns:
-        Dictionary with student's Python project analysis
-    """
-    user = cursus_user.get('user', {})
-    user_id = user.get('id')
-    login = user.get('login', 'unknown')
-    
-    if not user_id:
-        return None
-    
-    print(f"\nProcessing student: {login}")
-    
-    # Get all projects for this user
-    print(f"  Fetching projects...")
-    projects = client.get_user_projects(user_id)
-    
-    # Filter to Python projects
-    python_projects = DataProcessor.filter_python_projects(projects)
-    print(f"  Found {len(python_projects)} Python projects")
-    
-    if not python_projects:
-        return None
-    
-    # Get log time data
-    print(f"  Fetching log time data...")
-    locations = client.get_user_locations(user_id)
-    print(f"  Found {len(locations)} log entries")
-    
-    # Analyze time spent on Python projects
-    analysis = DataProcessor.analyze_python_time(python_projects, locations)
-    
-    return {
-        'user_id': user_id,
-        'login': login,
-        'email': user.get('email', ''),
-        'cursus_level': cursus_user.get('level', 0),
-        'python_projects': analysis,
-        'total_python_hours': sum(p['time_spent_hours'] for p in analysis)
-    }
-
-
 def main():
     """Main application entry point"""
     print("=" * 60)
