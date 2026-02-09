@@ -704,7 +704,7 @@
             monochrome: ['#212529', '#495057', '#6c757d', '#adb5bd', '#ced4da', '#dee2e6', '#e9ecef', '#f8f9fa', '#ffffff', '#000000']
         };
 
-        let rawData = {{ data|tojson|safe }};
+        let rawData = {{DATA_PLACEHOLDER}};
         let filteredData = [...rawData];
         let charts = {};
         let chartConfigs = {};
