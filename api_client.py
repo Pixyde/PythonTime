@@ -159,6 +159,18 @@ class API42Client:
         
         return all_items
     
+    def get_campuses(self) -> List[Dict]:
+        """
+        Get list of all available campuses
+        
+        Returns:
+            List of campus dictionaries with id, name, city, country, etc.
+        """
+        print("Fetching available campuses...")
+        campuses = self._make_paginated_request("/v2/campus")
+        print(f"✓ Found {len(campuses)} campuses")
+        return campuses
+    
     def get_campus_users(self, campus_id: int, cursus_id: int = 21) -> List[Dict]:
         """
         Get all users from a specific campus and cursus

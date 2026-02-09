@@ -1,20 +1,24 @@
 # 42 API Python Time Tracker
 
-A Python application that uses the 42 API to gather and analyze time spent on Python modules by students at the Havre campus (promotion 4).
+A Python application that uses the 42 API to gather and analyze time spent on Python modules by students across 42 campuses.
 
-**Now optimized with caching and bulk data fetching for significantly faster performance!**
+**Now optimized with caching, bulk data fetching, interactive campus selection, detailed statistics, and data visualizations!**
 
 ## Features
 
 - 🔐 OAuth2 authentication with 42 API
+- 🏫 **NEW: Interactive campus selection** - Choose from all available campuses or view all campuses comparison
 - 👥 Fetches student data from specific campus and cursus
 - 📊 Gathers Python module start and end dates
 - ⏱️ Collects student log time data
 - 📈 Calculates approximate time spent on each Python module
 - 💾 Exports results to JSON format
-- 🚀 **NEW: Optimized bulk data fetching**
-- 💽 **NEW: Intelligent caching system to avoid redundant API calls**
-- 🎯 **NEW: Filter for new common core Python modules only**
+- 🚀 Optimized project-based data fetching (98% fewer API calls!)
+- 💽 Intelligent caching system to avoid redundant API calls
+- 🎯 Filter for new common core Python modules only
+- 📉 **NEW: Detailed statistics** - Individual module times and averages
+- 📊 **NEW: Data visualization** - Generate charts and graphs
+- 🌍 **NEW: All campus comparison** - View average statistics across all campuses
 
 ## Prerequisites
 
@@ -75,19 +79,54 @@ Run the application:
 python main.py
 ```
 
-The application will:
+### Interactive Campus Selection
+
+When you run the application, you'll be prompted to select a campus:
+
+1. **Select a specific campus** - Enter the number of the campus you want to analyze
+2. **Select "0" for ALL CAMPUSES** - View average statistics and comparison across all campuses
+
+The application will then:
 1. Authenticate with the 42 API
-2. Fetch all students from the Havre campus (promotion 4)
-3. For each student:
-   - Get all their projects
-   - Filter to Python-related projects
-   - Fetch their log time data
-   - Calculate time spent on each Python module
-4. Save results to a JSON file with timestamp
+2. Fetch students from the selected campus(es)
+3. Identify Python projects from the cursus
+4. For each Python project, fetch users who worked on it (project-based approach - very efficient!)
+5. Fetch location (log time) data for students with Python projects
+6. Calculate time spent on each Python module
+7. **Generate detailed statistics** including:
+   - Individual student breakdown with per-module times
+   - Module averages across all students
+   - Overall statistics
+8. **Create visualizations** (charts and graphs saved as PNG files)
+9. Save results to JSON files with timestamp
+
+### Campus Comparison Mode
+
+When you select option "0" (ALL CAMPUSES), the application will:
+- Process all available campuses
+- Calculate average Python hours per student for each campus
+- Show module-level statistics across all campuses
+- Display a ranking of campuses by average hours
+- Save detailed comparison data to `campus_comparison_YYYYMMDD_HHMMSS.json`
 
 ## Output
 
-The application generates a JSON file named `python_time_analysis_YYYYMMDD_HHMMSS.json` with the following structure:
+### For Single Campus
+
+The application generates:
+
+1. **JSON data file**: `python_time_analysis_YYYYMMDD_HHMMSS.json` with detailed student data
+2. **Visualization files**:
+   - `module_average_times.png` - Bar chart of average time per module
+   - `top_students.png` - Bar chart of top 15 students by total hours
+   - `time_distribution.png` - Histogram of time distribution
+
+### For All Campuses Comparison
+
+The application generates:
+1. **JSON comparison file**: `campus_comparison_YYYYMMDD_HHMMSS.json` with campus statistics
+
+### JSON Structure (Single Campus)
 
 ```json
 [
@@ -112,6 +151,14 @@ The application generates a JSON file named `python_time_analysis_YYYYMMDD_HHMMS
   }
 ]
 ```
+
+### Statistics Display
+
+The application displays:
+- **Overall Statistics**: Total students, total hours, average per student
+- **Module Statistics**: For each Python module, shows number of students, average time, and total time
+- **Individual Student Breakdown**: Top students with their module-by-module time breakdown
+- **Campus Comparison** (all campus mode): Rankings and averages across campuses
 
 ## How It Works
 
