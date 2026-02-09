@@ -72,6 +72,58 @@ def get_all_students(cursus_users: List[Dict]) -> List[Dict]:
     return students
 
 
+def process_student_with_cached_data(
+    cursus_user: Dict, 
+    projects_data: Dict[int, List[Dict]], 
+    locations_data: Dict[int, List[Dict]]
+) -> Dict:
+    """
+    Process a single student's data using pre-fetched bulk data
+    
+    Args:
+        cursus_user: Cursus user dictionary
+        projects_data: Pre-fetched projects data for all users
+        locations_data: Pre-fetched locations data for all users
+        
+    Returns:
+        Dictionary with student's Python project analysis
+    """
+    user = cursus_user.get('user', {})
+    user_id = user.get('id')
+    login = user.get('login', 'unknown')
+    
+    if not user_id:
+        return None
+    
+    print(f"\nProcessing student: {login}")
+    
+    # Get projects from pre-fetched data
+    projects = projects_data.get(user_id, [])
+    
+    # Filter to Python projects
+    python_projects = DataProcessor.filter_python_projects(projects)
+    print(f"  Found {len(python_projects)} Python projects")
+    
+    if not python_projects:
+        return None
+    
+    # Get locations from pre-fetched data
+    locations = locations_data.get(user_id, [])
+    print(f"  Found {len(locations)} log entries")
+    
+    # Analyze time spent on Python projects
+    analysis = DataProcessor.analyze_python_time(python_projects, locations)
+    
+    return {
+        'user_id': user_id,
+        'login': login,
+        'email': user.get('email', ''),
+        'cursus_level': cursus_user.get('level', 0),
+        'python_projects': analysis,
+        'total_python_hours': sum(p['time_spent_hours'] for p in analysis)
+    }
+
+
 def process_student(client: API42Client, cursus_user: Dict) -> Dict:
     """
     Process a single student's data
@@ -141,15 +193,23 @@ def main():
             print("Failed to authenticate. Please check your credentials.")
             return
         
-        # Get students from Havre campus
-        print(f"\nFetching students from Havre campus (ID: {HAVRE_CAMPUS_ID})...")
-        cursus_users = client.get_campus_users(HAVRE_CAMPUS_ID, MAIN_CURSUS_ID)
+        # OPTIMIZED: Get all cursus users in one bulk request
+        print(f"\nFetching all users from cursus {MAIN_CURSUS_ID}...")
+        all_cursus_users = client.get_all_cursus_users(MAIN_CURSUS_ID)
+        
+        if not all_cursus_users:
+            print("No users found in cursus.")
+            return
+        
+        # OPTIMIZED: Filter by campus locally instead of making separate API request
+        print(f"\nFiltering for Havre campus (ID: {HAVRE_CAMPUS_ID})...")
+        cursus_users = client.filter_users_by_campus(all_cursus_users, HAVRE_CAMPUS_ID)
         
         if not cursus_users:
-            print("No students found. This might be due to:")
+            print("No students found from Havre campus. This might be due to:")
             print("  - Incorrect campus ID")
             print("  - API permissions")
-            print("  - No students in this cursus")
+            print("  - No students in this cursus at this campus")
             return
         
         # Get all students (adjust filter logic as needed for promotion 4)
@@ -157,11 +217,34 @@ def main():
         students = get_all_students(cursus_users)
         print(f"Found {len(students)} students to analyze")
         
-        # Process each student
+        # Extract user IDs for bulk fetching
+        user_ids = [s.get('user', {}).get('id') for s in students if s.get('user', {}).get('id')]
+        print(f"\nPreparing to fetch data for {len(user_ids)} students...")
+        
+        # OPTIMIZED: Bulk fetch all projects data
+        print("\n" + "=" * 60)
+        print("BULK FETCHING PROJECTS DATA")
+        print("=" * 60)
+        projects_data = client.get_bulk_projects_data(user_ids)
+        
+        # OPTIMIZED: Bulk fetch all locations data
+        print("\n" + "=" * 60)
+        print("BULK FETCHING LOCATIONS DATA")
+        print("=" * 60)
+        locations_data = client.get_bulk_locations_data(user_ids)
+        
+        # Process each student with cached data
+        print("\n" + "=" * 60)
+        print("ANALYZING STUDENT DATA")
+        print("=" * 60)
         results = []
         for i, cursus_user in enumerate(students, 1):
             print(f"\n[{i}/{len(students)}] ", end="")
-            student_data = process_student(client, cursus_user)
+            student_data = process_student_with_cached_data(
+                cursus_user, 
+                projects_data, 
+                locations_data
+            )
             if student_data:
                 results.append(student_data)
         

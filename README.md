@@ -10,6 +10,8 @@ A Python application that uses the 42 API to gather and analyze time spent on Py
 - ⏱️ Collects student log time data
 - 📈 Calculates approximate time spent on each Python module
 - 💾 Exports results to JSON format
+- 🚀 **Optimized API requests** with caching and bulk fetching
+- 💡 **Reduced API calls** by fetching all cursus users once and filtering locally
 
 ## Prerequisites
 
@@ -72,13 +74,14 @@ python main.py
 
 The application will:
 1. Authenticate with the 42 API
-2. Fetch all students from the Havre campus (promotion 4)
-3. For each student:
-   - Get all their projects
+2. Fetch all students from the main cursus (21) in a single bulk request
+3. Filter students locally to those from the Havre campus (promotion 4)
+4. Bulk fetch projects data for all students (with caching)
+5. Bulk fetch log time data for all students (with caching)
+6. For each student:
    - Filter to Python-related projects
-   - Fetch their log time data
    - Calculate time spent on each Python module
-4. Save results to a JSON file with timestamp
+7. Save results to a JSON file with timestamp
 
 ## Output
 
@@ -109,6 +112,19 @@ The application generates a JSON file named `python_time_analysis_YYYYMMDD_HHMMS
 ```
 
 ## How It Works
+
+### Optimized API Request Strategy
+
+The application is optimized to minimize API requests:
+
+1. **Bulk Fetching**: Instead of fetching users campus-by-campus, it fetches all cursus users in one request
+2. **Local Filtering**: Campus filtering is done locally on the fetched data, avoiding separate API calls
+3. **Caching**: All API responses are cached in memory to avoid redundant requests
+4. **Batch Processing**: Projects and locations are fetched for all users before processing
+
+This approach reduces the number of API requests from `O(n * m)` to `O(n)`, where:
+- `n` = number of students
+- `m` = number of API calls per student (previously 2-3, now cached)
 
 ### Time Calculation
 
@@ -144,7 +160,13 @@ PythonTime/
 
 ## API Rate Limiting
 
-The application includes basic rate limiting (0.1s delay between paginated requests) to be respectful of the 42 API. If you encounter rate limiting errors, you may need to add additional delays.
+The application includes several features to be respectful of the 42 API:
+
+- **Built-in rate limiting**: 0.1s delay between paginated requests
+- **Request caching**: Responses are cached in memory to avoid duplicate requests
+- **Bulk operations**: Multiple data points fetched together to minimize total requests
+
+If you encounter rate limiting errors, you may need to add additional delays or contact 42 API support.
 
 ## Troubleshooting
 
