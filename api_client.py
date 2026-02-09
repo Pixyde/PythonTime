@@ -7,7 +7,7 @@ import requests
 import time
 import os
 import json
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from datetime import datetime
 from pathlib import Path
 
@@ -74,11 +74,11 @@ class API42Client:
         params_str = json.dumps(params or {}, sort_keys=True)
         return f"{endpoint}_{hash(params_str)}"
     
-    def _get_from_cache(self, cache_key: str) -> Optional[any]:
+    def _get_from_cache(self, cache_key: str) -> Optional[Any]:
         """Get data from memory cache"""
         return self._cache.get(cache_key)
     
-    def _store_in_cache(self, cache_key: str, data: any):
+    def _store_in_cache(self, cache_key: str, data: Any):
         """Store data in memory cache"""
         self._cache[cache_key] = data
     
