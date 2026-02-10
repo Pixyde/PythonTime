@@ -317,6 +317,31 @@ document.addEventListener('click', function(e) {
 
 // ---- NAVIGATION ----
 let activeSection = 'all';
+const renderedSections = new Set();
+
+// Map chart IDs to their section for lazy rendering
+const chartSectionMap = {
+  kpi: 'kpi',
+  modulestats: 'modulestats', modulestatbar: 'modulestats',
+  gantt: 'timeline', heatmap: 'timeline', progress: 'timeline',
+  multibar: 'comparison', boxplot: 'comparison', radar: 'comparison',
+  scatter: 'performance', efficiency: 'performance', gauge: 'performance',
+  sankey: 'flow', funnel: 'flow', stream: 'flow',
+  histogram: 'statistical', cdf: 'statistical', correlation: 'statistical',
+  ranking: 'leaderboard', bump: 'leaderboard',
+  treemap: 'advanced', sunburst: 'advanced', parallel: 'advanced', network: 'advanced',
+  datatable: 'interactive', racebar: 'interactive',
+  campus: 'campus', promoCompletion: 'campus', campusmodule: 'campus'
+};
+
+function updateChartsForSection(section) {
+  Object.entries(chartUpdaters).forEach(([id, fn]) => {
+    if (section === 'all' || chartSectionMap[id] === section) {
+      try { fn(); } catch(e) { console.error('Chart update error:', id, e); }
+    }
+  });
+  renderedSections.add(section);
+}
 
 function showSection(section) {
   activeSection = section;
@@ -328,6 +353,18 @@ function showSection(section) {
       s.classList.toggle('hidden', s.dataset.section !== section);
     }
   });
+
+  // Lazy render: only render charts for newly visible sections
+  if (section === 'all') {
+    // Render any sections not yet rendered
+    const allSections = new Set(Object.values(chartSectionMap));
+    allSections.forEach(s => {
+      if (!renderedSections.has(s)) updateChartsForSection(s);
+    });
+    renderedSections.add('all');
+  } else if (!renderedSections.has(section)) {
+    updateChartsForSection(section);
+  }
 }
 
 // ---- UPDATE ALL CHARTS ----
@@ -338,9 +375,17 @@ function registerChart(id, updateFn) {
 }
 
 function updateAllCharts() {
-  Object.values(chartUpdaters).forEach(fn => {
-    try { fn(); } catch(e) { console.error('Chart update error:', e); }
-  });
+  renderedSections.clear();
+  if (activeSection === 'all') {
+    Object.entries(chartUpdaters).forEach(([id, fn]) => {
+      try { fn(); } catch(e) { console.error('Chart update error:', id, e); }
+    });
+    const allSections = new Set(Object.values(chartSectionMap));
+    allSections.forEach(s => renderedSections.add(s));
+    renderedSections.add('all');
+  } else {
+    updateChartsForSection(activeSection);
+  }
 }
 
 // ---- HEADER STATS ----

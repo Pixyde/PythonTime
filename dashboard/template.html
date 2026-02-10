@@ -129,7 +129,7 @@
     <div class="panel">
       <div class="panel-header"><h3><span class="panel-number">1</span> Timeline Gantt Chart</h3><span class="panel-badge">Timeline</span></div>
       <div class="panel-controls">
-        <div class="ctrl"><label>User</label><select id="gantt-user" onchange="chartUpdaters.gantt()"><option value="all">All Users</option></select></div>
+        <div class="ctrl"><label>User</label><select id="gantt-user" onchange="chartUpdaters.gantt()"></select></div>
         <div class="ctrl"><label>Min Hours</label><input type="range" id="gantt-min-hours" min="0" max="100" value="0" oninput="this.nextElementSibling.textContent=this.value+'h';chartUpdaters.gantt()"><span class="range-value">0h</span></div>
         <div class="ctrl"><label>Color By</label><select id="gantt-color" onchange="chartUpdaters.gantt()"><option value="status">Status</option><option value="user">User</option></select></div>
         <div class="ctrl"><label>Sort</label><select id="gantt-sort" onchange="chartUpdaters.gantt()"><option value="alpha">Alphabetical</option><option value="hours">Hours</option></select></div>
@@ -453,7 +453,8 @@
   populateGlobalFilters();
   applyGlobalFilters();
   updateHeaderStats();
-  updateAllCharts();
+  // Start on KPI section for fast initial load
+  showSection('kpi');
 })();
 </script>
 </body>

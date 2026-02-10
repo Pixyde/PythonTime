@@ -186,7 +186,12 @@ registerChart('racebar', function() {
   const dates = [...allDates].sort();
   if (dates.length < 2) { el.innerHTML = '<div class="chart-empty">Insufficient data</div>'; return; }
 
-  // Sample dates for animation frames
+  // Pre-compute user color index map for O(1) lookups
+  const allUsersList = getAllUsers();
+  const userColorIdx = {};
+  allUsersList.forEach((u, i) => { userColorIdx[u] = i; });
+
+  // Sample dates for animation frames (max 30)
   const step = Math.max(1, Math.floor(dates.length / 30));
   const frames = [];
 
@@ -206,8 +211,18 @@ registerChart('racebar', function() {
     frames.push({ date, snapshot });
   }
 
+  if (!frames.length) { el.innerHTML = '<div class="chart-empty">No animation frames</div>'; return; }
+
+  function getUserColor(login) {
+    return COLORS.palette[(userColorIdx[login] || 0) % COLORS.palette.length];
+  }
+
+  // Compute max value across all frames
+  let maxVal = 1;
+  frames.forEach(f => f.snapshot.forEach(s => { if (s.value > maxVal) maxVal = s.value; }));
+
   // Animation frames
-  const plotlyFrames = frames.map((f, fi) => ({
+  const plotlyFrames = frames.map(f => ({
     name: f.date,
     data: [{
       type: 'bar',
@@ -215,7 +230,7 @@ registerChart('racebar', function() {
       y: f.snapshot.map(s => s.login).reverse(),
       x: f.snapshot.map(s => s.value).reverse(),
       marker: {
-        color: f.snapshot.map((s, i) => COLORS.palette[getAllUsers().indexOf(s.login) % COLORS.palette.length]).reverse()
+        color: f.snapshot.map(s => getUserColor(s.login)).reverse()
       },
       text: f.snapshot.map(s => `${s.value.toFixed(1)}`).reverse(),
       textposition: 'outside',
@@ -234,14 +249,12 @@ registerChart('racebar', function() {
     y: first.snapshot.map(s => s.login).reverse(),
     x: first.snapshot.map(s => s.value).reverse(),
     marker: {
-      color: first.snapshot.map((s, i) => COLORS.palette[getAllUsers().indexOf(s.login) % COLORS.palette.length]).reverse()
+      color: first.snapshot.map(s => getUserColor(s.login)).reverse()
     },
     text: first.snapshot.map(s => `${s.value.toFixed(1)}`).reverse(),
     textposition: 'outside',
     textfont: { size: 10, color: '#8e8e8e' }
   };
-
-  const maxVal = Math.max(...frames.flatMap(f => f.snapshot.map(s => s.value)), 1);
 
   const layout = {
     ...PLOTLY_LAYOUT_DEFAULTS,
@@ -263,7 +276,7 @@ registerChart('racebar', function() {
     }],
     sliders: [{
       active: 0,
-      steps: frames.map((f, i) => ({ label: f.date, method: 'animate', args: [[f.date], { frame: { duration: 0, redraw: true }, mode: 'immediate' }] })),
+      steps: frames.map(f => ({ label: f.date, method: 'animate', args: [[f.date], { frame: { duration: 0, redraw: true }, mode: 'immediate' }] })),
       x: 0, len: 1,
       currentvalue: { prefix: 'Date: ', font: { color: '#8e8e8e', size: 12 } },
       font: { color: '#8e8e8e', size: 9 },
@@ -273,7 +286,8 @@ registerChart('racebar', function() {
     }]
   };
 
-  Plotly.react(el, [trace], layout, PLOTLY_CONFIG).then(() => {
+  // Use Plotly.newPlot for proper animation support, then add frames
+  Plotly.newPlot(el, [trace], layout, PLOTLY_CONFIG).then(function() {
     Plotly.addFrames(el, plotlyFrames);
   });
 });

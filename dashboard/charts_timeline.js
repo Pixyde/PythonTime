@@ -17,10 +17,16 @@ registerChart('gantt', function() {
   const showNames = document.getElementById('gantt-names');
   const minHours = parseFloat(document.getElementById('gantt-min-hours')?.value) || 0;
 
-  let data = filteredData;
-  if (userSelect && userSelect.value !== 'all') {
-    data = data.filter(u => u.login === userSelect.value);
+  // Populate user dropdown (no "All Users" option)
+  if (userSelect && userSelect.options.length === 0) {
+    const users = getAllUsers();
+    userSelect.innerHTML = users.map(u => `<option value="${u}">${u}</option>`).join('');
   }
+
+  // Always show a single user
+  const selectedUser = userSelect?.value || '';
+  if (!selectedUser) { el.innerHTML = '<div class="chart-empty">Select a user</div>'; return; }
+  const data = filteredData.filter(u => u.login === selectedUser);
 
   const allRows = [];
 
@@ -71,12 +77,6 @@ registerChart('gantt', function() {
   };
 
   Plotly.react(el, traces, layout, PLOTLY_CONFIG);
-
-  // Populate user dropdown
-  if (userSelect && userSelect.options.length <= 1) {
-    const users = getAllUsers();
-    userSelect.innerHTML = '<option value="all">All Users</option>' + users.map(u => `<option value="${u}">${u}</option>`).join('');
-  }
 });
 
 // ---- 2. TIME SPENT HEATMAP CALENDAR ----
