@@ -339,6 +339,19 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
     login = user.get('login', 'unknown')
     email = user.get('email', '')
     
+    # Extract campus information from user data
+    campus_id = None
+    campus_name = 'Unknown'
+    if 'campus' in user and user['campus']:
+        if isinstance(user['campus'], list) and len(user['campus']) > 0:
+            # Campus is a list, take the first one
+            campus_id = user['campus'][0].get('id')
+            campus_name = user['campus'][0].get('name', 'Unknown')
+        elif isinstance(user['campus'], dict):
+            # Campus is a dict
+            campus_id = user['campus'].get('id')
+            campus_name = user['campus'].get('name', 'Unknown')
+    
     # Filter to Python projects (optionally only new common core)
     python_projects = DataProcessor.filter_python_projects(projects, new_common_core_only=new_common_core_only)
     
@@ -358,6 +371,8 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
         'user_id': user_id,
         'login': login,
         'email': email,
+        'campus_id': campus_id,
+        'campus_name': campus_name,
         'cursus_level': cursus_level,
         'python_projects': analysis,
         'total_python_hours': sum(p['time_spent_hours'] for p in analysis)
@@ -366,29 +381,53 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
 
 def calculate_module_statistics(results: List[Dict]) -> Dict:
     """
-    Calculate statistics for each module and overall averages
+    Calculate statistics for each module, overall averages, and campus comparisons
     
     Args:
         results: List of student data dictionaries
         
     Returns:
-        Dictionary with module statistics and averages
+        Dictionary with module statistics, overall stats, and campus stats
     """
     from collections import defaultdict
     
     # Collect data per module
     module_data = defaultdict(lambda: {'times': [], 'students': 0, 'total_time': 0})
     
+    # Collect data per campus
+    campus_data = defaultdict(lambda: {
+        'total_hours': 0,
+        'students': 0,
+        'projects_finished': 0,
+        'projects_total': 0,
+        'scores': []
+    })
+    
     for student in results:
+        campus_name = student.get('campus_name', 'Unknown')
+        campus_id = student.get('campus_id')
+        
+        # Track campus-level stats
+        campus_data[campus_name]['students'] += 1
+        campus_data[campus_name]['total_hours'] += student.get('total_python_hours', 0)
+        
         for project in student['python_projects']:
             module_name = project['project_name']
             time_spent = project['time_spent_hours']
             
+            # Module stats
             module_data[module_name]['times'].append(time_spent)
             module_data[module_name]['students'] += 1
             module_data[module_name]['total_time'] += time_spent
+            
+            # Campus project stats
+            campus_data[campus_name]['projects_total'] += 1
+            if project.get('status') == 'finished':
+                campus_data[campus_name]['projects_finished'] += 1
+            if project.get('final_mark') is not None:
+                campus_data[campus_name]['scores'].append(project['final_mark'])
     
-    # Calculate averages
+    # Calculate module averages
     module_stats = {}
     for module_name, data in module_data.items():
         module_stats[module_name] = {
@@ -399,17 +438,37 @@ def calculate_module_statistics(results: List[Dict]) -> Dict:
             'max_time': max(data['times']) if data['times'] else 0,
         }
     
+    # Calculate campus statistics
+    campus_stats = {}
+    for campus_name, data in campus_data.items():
+        avg_hours = data['total_hours'] / data['students'] if data['students'] > 0 else 0
+        completion_rate = (data['projects_finished'] / data['projects_total'] * 100) if data['projects_total'] > 0 else 0
+        avg_score = sum(data['scores']) / len(data['scores']) if data['scores'] else 0
+        
+        campus_stats[campus_name] = {
+            'students': data['students'],
+            'total_hours': data['total_hours'],
+            'average_hours': avg_hours,
+            'projects_total': data['projects_total'],
+            'projects_finished': data['projects_finished'],
+            'completion_rate': completion_rate,
+            'average_score': avg_score,
+            'efficiency': avg_score / avg_hours if avg_hours > 0 else 0
+        }
+    
     # Calculate overall statistics
     total_hours = sum(s['total_python_hours'] for s in results)
     overall_stats = {
         'total_students': len(results),
         'total_hours': total_hours,
         'average_hours_per_student': total_hours / len(results) if results else 0,
+        'total_campuses': len(campus_stats)
     }
     
     return {
         'modules': module_stats,
-        'overall': overall_stats
+        'overall': overall_stats,
+        'campuses': campus_stats
     }
 
 
@@ -447,6 +506,25 @@ def display_statistics(results: List[Dict], stats: Dict):
     for module_name, module_stats in sorted_modules:
         print(f"{module_name:<40} {module_stats['total_students']:<12} "
               f"{module_stats['average_time']:<12.2f} {module_stats['total_time']:<12.2f}")
+    
+    # Campus statistics (if available)
+    if 'campuses' in stats and stats['campuses']:
+        print("\n🏫 Campus Statistics:")
+        print("-" * 100)
+        print(f"{'Campus Name':<30} {'Students':<10} {'Avg Hours':<12} {'Completion %':<15} {'Avg Score':<12}")
+        print("-" * 100)
+        
+        # Sort campuses by number of students (descending)
+        sorted_campuses = sorted(
+            stats['campuses'].items(),
+            key=lambda x: x[1]['students'],
+            reverse=True
+        )
+        
+        for campus_name, campus_stats in sorted_campuses:
+            print(f"{campus_name:<30} {campus_stats['students']:<10} "
+                  f"{campus_stats['average_hours']:<12.2f} {campus_stats['completion_rate']:<15.1f} "
+                  f"{campus_stats['average_score']:<12.1f}")
     
     print("-" * 80)
     
