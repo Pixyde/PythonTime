@@ -602,8 +602,9 @@ def main():
                 campus_id=selected_campus_id
             )
             if user_data:
-                # If total hours is 0, invalidate cache and re-fetch locations
-                if user_data['total_python_hours'] == 0:
+                # If total hours is 0 and caching is enabled, the cached
+                # location data may be stale.  Invalidate and re-fetch once.
+                if user_data['total_python_hours'] == 0 and client.cache:
                     print(f"[{i}/{len(projects_map)}] {user_data['login']}: 0h detected — clearing cache and re-fetching locations...")
                     fresh_locations = client.refetch_user_locations(
                         user_id,

@@ -226,10 +226,11 @@ registerChart('network', function() {
     }
   }
 
-  // Simple force-directed layout
+  // Simple force-directed layout (deterministic seeded noise)
+  function seededNoise(seed) { let x = Math.sin(seed * 9301 + 49297) * 49297; return x - Math.floor(x); }
   const positions = users.map((_, i) => ({
-    x: Math.cos(2 * Math.PI * i / users.length) * 100 + (Math.random() - 0.5) * 40,
-    y: Math.sin(2 * Math.PI * i / users.length) * 100 + (Math.random() - 0.5) * 40
+    x: Math.cos(2 * Math.PI * i / users.length) * 100 + (seededNoise(i * 2) - 0.5) * 40,
+    y: Math.sin(2 * Math.PI * i / users.length) * 100 + (seededNoise(i * 2 + 1) - 0.5) * 40
   }));
 
   // Iterative force layout (simplified)
