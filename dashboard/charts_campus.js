@@ -292,7 +292,7 @@ registerChart('promoCompletion', function() {
       name: `Finished ≥75% modules`,
       x: [...campusNames, '⊕ Global'],
       y: [...pctMost, globalPctMost],
-      text: [...pctMost.map((v, i) => `${v.toFixed(0)}%`), `${globalPctMost.toFixed(0)}%`],
+      text: [...pctMost.map((v, i) => `${v.toFixed(0)}% (${finishedMost[i]}/${totalUsers[i]})`), `${globalPctMost.toFixed(0)}% (${globalMost}/${globalTotal})`],
       textposition: 'outside',
       textfont: { size: 9, color: '#8e8e8e' },
       marker: { color: COLORS.cyan },
