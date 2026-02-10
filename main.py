@@ -16,6 +16,9 @@ from data_processor import DataProcessor
 # Cursus ID for 42 cursus
 MAIN_CURSUS_ID = 21
 
+# Users to exclude from all data collection and analysis
+EXCLUDED_USERS = ['suske', 'wkrati']
+
 # New Common Core - Filter for only new common core modules
 USE_NEW_COMMON_CORE_ONLY = True  # Set to True to filter only new common core modules
 
@@ -324,6 +327,10 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
     login = user.get('login', 'unknown')
     email = user.get('email', '')
     
+    # Skip excluded users
+    if login in EXCLUDED_USERS:
+        return None
+    
     # Filter to Python projects (optionally only new common core)
     python_projects = DataProcessor.filter_python_projects(projects, new_common_core_only=new_common_core_only)
     
@@ -624,8 +631,8 @@ def main():
             if user_id in user_campus_map:
                 c_name, c_id = user_campus_map[user_id]
             else:
-                c_name = selected_campus_name
-                c_id = selected_campus_id
+                c_name = 'Not Found'
+                c_id = None
 
             user_data = process_user_from_projects(
                 user_id,
