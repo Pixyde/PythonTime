@@ -200,7 +200,7 @@ function applyGlobalFilters() {
       python_projects: projects,
       total_python_hours: projects.reduce((s, p) => s + p.time_spent_hours, 0)
     };
-  }).filter(Boolean);
+  }).filter(Boolean).filter(u => u.total_python_hours > 0);
 }
 
 // ---- POPULATE GLOBAL FILTERS ----

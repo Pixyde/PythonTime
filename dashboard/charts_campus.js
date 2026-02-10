@@ -51,7 +51,7 @@ registerChart('campus', function() {
       totalProjects: allProjects.length,
       avgProjectsPerUser: users.length ? allProjects.length / users.length : 0,
       efficiency: users.length && users.reduce((s, u) => s + u.total_python_hours, 0) > 0
-        ? (scored.length ? mean(scored.map(p => p.final_mark)) : 0) / (users.reduce((s, u) => s + u.total_python_hours, 0) / users.length)
+        ? allProjects.length / (users.reduce((s, u) => s + u.total_python_hours, 0) / users.length)
         : 0
     };
   });
@@ -125,7 +125,7 @@ registerChart('campus', function() {
     'validation': { key: 'validationRate', label: 'Validation Rate (%)' },
     'users': { key: 'userCount', label: 'Number of Users' },
     'total_hours': { key: 'totalHours', label: 'Total Hours' },
-    'efficiency': { key: 'efficiency', label: 'Efficiency (pts/hour)' },
+    'efficiency': { key: 'efficiency', label: 'Efficiency (proj/hour)' },
     'projects_per_user': { key: 'avgProjectsPerUser', label: 'Avg Projects per User' }
   };
 

@@ -20,7 +20,7 @@ registerChart('ranking', function() {
     const finished = u.python_projects.filter(p => p.status === 'finished');
     const avgMark = scored.length ? mean(scored.map(p => p.final_mark)) : 0;
     const completionRate = u.python_projects.length ? (finished.length / u.python_projects.length) * 100 : 0;
-    const efficiency = u.total_python_hours > 0 ? avgMark / u.total_python_hours : 0;
+    const efficiency = u.total_python_hours > 0 ? u.python_projects.length / u.total_python_hours : 0;
 
     // Build sparkline data (hours per project over time)
     const projsSorted = [...u.python_projects].filter(p => p.start_date).sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
@@ -80,7 +80,7 @@ registerChart('ranking', function() {
       <td>${u.avgMark.toFixed(1)}</td>
       <td><span class="badge ${u.completionRate >= 75 ? 'badge-finished' : u.completionRate >= 50 ? 'badge-in_progress' : 'badge-waiting'}">${u.completionRate.toFixed(0)}%</span></td>
       <td>${u.numFinished}/${u.numProjects}</td>
-      <td>${u.efficiency.toFixed(2)} pts/h</td>
+      <td>${u.efficiency.toFixed(2)} proj/h</td>
       <td>${sparkline(u.sparkData)}</td>
     </tr>`;
   });

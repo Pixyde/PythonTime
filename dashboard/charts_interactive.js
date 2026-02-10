@@ -36,7 +36,7 @@ registerChart('kpi', function() {
     { label: 'Validation Rate', value: validationRate.toFixed(0) + '%', icon: '🏆', color: COLORS.orange },
     { label: 'Avg Hours/User', value: avgHoursPerUser.toFixed(1), icon: '📈', color: COLORS.yellow },
     { label: 'Total Projects', value: allProjects.length, icon: '📦', color: COLORS.red },
-    { label: 'Avg Score/Hour', value: (totalHours > 0 ? avgScore / (totalHours / activeUsers) : 0).toFixed(2), icon: '⚡', color: COLORS.cyan }
+    { label: 'Projects/Hour', value: (activeUsers > 0 && totalHours > 0 ? allProjects.length / totalHours : 0).toFixed(2), icon: '⚡', color: COLORS.cyan }
   ];
 
   el.innerHTML = '<div class="kpi-grid">' + kpis.map(kpi => `
