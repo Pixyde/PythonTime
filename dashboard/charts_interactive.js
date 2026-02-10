@@ -28,6 +28,20 @@ registerChart('kpi', function() {
   const secondHalfHours = filteredData.slice(half).reduce((s, u) => s + u.total_python_hours, 0);
   const hoursTrend = half > 0 ? ((secondHalfHours / Math.max(firstHalfHours, 1)) - 1) * 100 : 0;
 
+  // Average total completion time: days from first project start to last project end per user
+  const completionDays = [];
+  filteredData.forEach(u => {
+    const starts = u.python_projects.map(p => p.start_date).filter(Boolean).map(d => new Date(d));
+    const ends = u.python_projects.map(p => p.end_date).filter(Boolean).map(d => new Date(d));
+    if (starts.length && ends.length) {
+      const earliest = new Date(Math.min(...starts));
+      const latest = new Date(Math.max(...ends));
+      const days = (latest - earliest) / (1000 * 60 * 60 * 24);
+      if (days > 0) completionDays.push(days);
+    }
+  });
+  const avgCompletionDays = completionDays.length ? mean(completionDays) : 0;
+
   const kpis = [
     { label: 'Total Hours', value: formatNumber(totalHours), icon: '⏱️', color: COLORS.primary, trend: hoursTrend },
     { label: 'Active Users', value: activeUsers, icon: '👥', color: COLORS.cyan },
@@ -36,7 +50,8 @@ registerChart('kpi', function() {
     { label: 'Validation Rate', value: validationRate.toFixed(0) + '%', icon: '🏆', color: COLORS.orange },
     { label: 'Avg Hours/User', value: avgHoursPerUser.toFixed(1), icon: '📈', color: COLORS.yellow },
     { label: 'Total Projects', value: allProjects.length, icon: '📦', color: COLORS.red },
-    { label: 'Projects/Hour', value: (activeUsers > 0 && totalHours > 0 ? allProjects.length / totalHours : 0).toFixed(2), icon: '⚡', color: COLORS.cyan }
+    { label: 'Projects/Hour', value: (activeUsers > 0 && totalHours > 0 ? allProjects.length / totalHours : 0).toFixed(2), icon: '⚡', color: COLORS.cyan },
+    { label: 'Avg Completion Time', value: avgCompletionDays > 0 ? avgCompletionDays.toFixed(0) + 'd' : '-', icon: '📅', color: COLORS.purple }
   ];
 
   el.innerHTML = '<div class="kpi-grid">' + kpis.map(kpi => `

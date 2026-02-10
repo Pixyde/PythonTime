@@ -22,6 +22,15 @@ registerChart('ranking', function() {
     const completionRate = u.python_projects.length ? (finished.length / u.python_projects.length) * 100 : 0;
     const efficiency = u.total_python_hours > 0 ? u.python_projects.length / u.total_python_hours : 0;
 
+    // Total completion time: days from first start to last end
+    const starts = u.python_projects.map(p => p.start_date).filter(Boolean).map(d => new Date(d));
+    const ends = u.python_projects.map(p => p.end_date).filter(Boolean).map(d => new Date(d));
+    let completionDays = null;
+    if (starts.length && ends.length) {
+      const days = (new Date(Math.max(...ends)) - new Date(Math.min(...starts))) / (1000 * 60 * 60 * 24);
+      if (days > 0) completionDays = days;
+    }
+
     // Build sparkline data (hours per project over time)
     const projsSorted = [...u.python_projects].filter(p => p.start_date).sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
     const sparkData = projsSorted.map(p => p.time_spent_hours);
@@ -32,6 +41,7 @@ registerChart('ranking', function() {
       avgMark,
       completionRate,
       efficiency,
+      completionDays,
       numProjects: u.python_projects.length,
       numFinished: finished.length,
       sparkData
@@ -67,7 +77,7 @@ registerChart('ranking', function() {
   const offset = (page - 1) * pageSize;
   let html = `<div class="data-table-wrapper"><table class="data-table">
     <thead><tr>
-      <th>#</th><th>User</th><th>Hours</th><th>Avg Mark</th><th>Completion</th><th>Projects</th><th>Efficiency</th><th>Trend</th>
+      <th>#</th><th>User</th><th>Hours</th><th>Completion Time</th><th>Avg Mark</th><th>Completion</th><th>Projects</th><th>Efficiency</th><th>Trend</th>
     </tr></thead><tbody>`;
 
   pageUsers.forEach((u, i) => {
@@ -77,6 +87,7 @@ registerChart('ranking', function() {
       <td>${medal}</td>
       <td><strong>${u.login}</strong></td>
       <td>${u.hours.toFixed(1)}h</td>
+      <td>${u.completionDays !== null ? u.completionDays.toFixed(0) + 'd' : '-'}</td>
       <td>${u.avgMark.toFixed(1)}</td>
       <td><span class="badge ${u.completionRate >= 75 ? 'badge-finished' : u.completionRate >= 50 ? 'badge-in_progress' : 'badge-waiting'}">${u.completionRate.toFixed(0)}%</span></td>
       <td>${u.numFinished}/${u.numProjects}</td>

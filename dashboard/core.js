@@ -5,6 +5,10 @@
 // ---- GLOBAL STATE ----
 const RAW_DATA = {{DATA_PLACEHOLDER}};
 let filteredData = [];
+
+// Users to always exclude from all calculations
+const EXCLUDED_USERS = ['suske', 'wkrati'];
+
 let globalFilters = {
   users: [],
   modules: [],
@@ -106,7 +110,7 @@ function getCompletionDays(project) {
 
 // ---- UTILITY FUNCTIONS ----
 function getAllUsers() {
-  return [...new Set(RAW_DATA.map(u => u.login))].sort();
+  return [...new Set(RAW_DATA.map(u => u.login))].filter(u => !EXCLUDED_USERS.includes(u)).sort();
 }
 
 function getAllModules() {
@@ -168,6 +172,8 @@ function dateStr(iso) {
 // ---- APPLY GLOBAL FILTERS ----
 function applyGlobalFilters() {
   filteredData = RAW_DATA.map(user => {
+    // Exclude blacklisted users
+    if (EXCLUDED_USERS.includes(user.login)) return null;
     // User filter
     if (globalFilters.users.length > 0 && !globalFilters.users.includes(user.login)) return null;
     // Campus filter

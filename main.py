@@ -590,17 +590,29 @@ def main():
             print("(Filtering for NEW COMMON CORE Python modules only)")
         print("=" * 60)
         
+        # Build user -> campus mapping for multi-campus dashboard support
+        # This resolves each user's actual primary campus from the API
+        user_campus_map = client.get_user_campus_map(list(projects_map.keys()))
+        
         # Process users who have Python projects
         results = []
         zero_logtime_retries = 0
         for i, user_id in enumerate(projects_map.keys(), 1):
+            # Determine campus: use per-user map (supports multi-campus),
+            # fall back to CLI-selected campus if not found in map
+            if user_id in user_campus_map:
+                c_name, c_id = user_campus_map[user_id]
+            else:
+                c_name = selected_campus_name
+                c_id = selected_campus_id
+
             user_data = process_user_from_projects(
                 user_id,
                 projects_map, 
                 locations_map,
                 new_common_core_only=USE_NEW_COMMON_CORE_ONLY,
-                campus_name=selected_campus_name,
-                campus_id=selected_campus_id
+                campus_name=c_name,
+                campus_id=c_id
             )
             if user_data:
                 # If total hours is 0 and caching is enabled, the cached
@@ -620,8 +632,8 @@ def main():
                         projects_map,
                         locations_map,
                         new_common_core_only=USE_NEW_COMMON_CORE_ONLY,
-                        campus_name=selected_campus_name,
-                        campus_id=selected_campus_id
+                        campus_name=c_name,
+                        campus_id=c_id
                     )
                     if user_data:
                         results.append(user_data)

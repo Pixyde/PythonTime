@@ -416,6 +416,53 @@ class API42Client:
         # Re-fetch from the API
         return self.get_user_locations(user_id, begin_at, end_at)
     
+    def get_user_info(self, user_id: int) -> Optional[Dict]:
+        """
+        Get full user info including campus membership
+        
+        Args:
+            user_id: User ID
+            
+        Returns:
+            User dictionary with campus info, or None if request failed
+        """
+        endpoint = f"/v2/users/{user_id}"
+        return self._make_request(endpoint)
+
+    def get_user_campus_map(self, user_ids: List[int]) -> Dict[int, tuple]:
+        """
+        Build a mapping of user_id -> (campus_name, campus_id) for all given users.
+        
+        Fetches user info (cached) to extract primary campus.
+        
+        Args:
+            user_ids: List of user IDs to look up
+            
+        Returns:
+            Dictionary mapping user_id -> (campus_name, campus_id)
+        """
+        print(f"\nResolving campus info for {len(user_ids)} users...")
+        user_campus_map = {}
+        for i, user_id in enumerate(user_ids, 1):
+            if i % 50 == 0:
+                print(f"  Progress: {i}/{len(user_ids)}")
+            user_info = self.get_user_info(user_id)
+            if user_info:
+                campus_list = user_info.get('campus', [])
+                campus_users = user_info.get('campus_users', [])
+                if campus_list:
+                    # Find primary campus
+                    primary = next((cu for cu in campus_users if cu.get('is_primary')), None)
+                    if primary:
+                        campus_id = primary.get('campus_id')
+                        campus = next((c for c in campus_list if c.get('id') == campus_id), campus_list[0])
+                    else:
+                        campus = campus_list[0]
+                    user_campus_map[user_id] = (campus.get('name', 'Unknown'), campus.get('id'))
+        
+        print(f"✓ Resolved campus info for {len(user_campus_map)}/{len(user_ids)} users")
+        return user_campus_map
+
     def clear_cache(self):
         """Clear all cached data"""
         if self.cache:
