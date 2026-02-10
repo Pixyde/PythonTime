@@ -89,7 +89,7 @@ registerChart('ranking', function() {
   const offset = (page - 1) * pageSize;
   let html = `<div class="data-table-wrapper"><table class="data-table">
     <thead><tr>
-      <th>#</th><th>User</th><th>Hours</th><th>Completion Time</th><th>Avg Mark</th><th>Modules</th><th>Completion</th><th>Efficiency</th><th>Trend</th>
+      <th>#</th><th>User</th><th>Hours</th><th>Completion Time</th><th>Avg Mark</th><th>Modules Finished</th><th>Completion</th><th>Efficiency</th><th>Trend</th>
     </tr></thead><tbody>`;
 
   pageUsers.forEach((u, i) => {
