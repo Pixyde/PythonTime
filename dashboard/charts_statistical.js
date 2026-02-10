@@ -23,7 +23,7 @@ registerChart('moduleprogress', function() {
       u.python_projects.forEach(p => {
         if (p.status === 'finished') finished.add(p.project_name);
       });
-      finished.forEach(m => { if (moduleCounts[m] !== undefined) moduleCounts[m]++; });
+      finished.forEach(m => { moduleCounts[m]++; });
     });
 
     const names = allModuleNames.slice();
