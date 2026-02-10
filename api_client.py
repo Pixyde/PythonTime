@@ -418,12 +418,13 @@ class API42Client:
         from data_processor import DataProcessor
         total_logtime = sum(DataProcessor.calculate_logtime_duration(loc) for loc in locations)
         
-        # Count finished projects
-        finished_count = sum(1 for p in projects if p.get('status') == 'finished')
+        # Count total projects (any status)
+        total_projects = len(projects)
         
-        # Detect bad cached data: 0.0 logtime with 2+ finished projects
-        if total_logtime == 0.0 and finished_count >= 2:
-            print(f"  ⚠️  Bad cache detected for user {user_id}: 0.0h logtime with {finished_count} finished projects")
+        # Detect bad cached data: 0.0 logtime with 2+ projects
+        # If a user has multiple projects (any status), they should have some logtime
+        if total_logtime == 0.0 and total_projects >= 2:
+            print(f"  ⚠️  Bad cache detected for user {user_id}: 0.0h logtime with {total_projects} projects")
             print(f"      Invalidating cache and refetching...")
             
             # Invalidate cache
