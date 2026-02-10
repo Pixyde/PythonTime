@@ -263,7 +263,8 @@ registerChart('network', function() {
     y: Math.sin(2 * Math.PI * i / users.length) * 100 + (seededNoise(i * 2 + 1) - 0.5) * 40
   }));
 
-  // Iterative force layout (simplified) — reduce iterations for larger graphs
+  // Iterative force layout (simplified) — scale iterations inversely with node count
+  // to keep total work (iterations × nodes²) manageable
   const forceIterations = Math.min(50, Math.max(10, Math.round(500 / users.length)));
   for (let iter = 0; iter < forceIterations; iter++) {
     positions.forEach((p1, i) => {
