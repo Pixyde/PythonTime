@@ -19,8 +19,19 @@ registerChart('ranking', function() {
     const scored = u.python_projects.filter(p => p.final_mark !== null && p.final_mark !== undefined);
     const finished = u.python_projects.filter(p => p.status === 'finished');
     const avgMark = scored.length ? mean(scored.map(p => p.final_mark)) : 0;
-    const completionRate = u.python_projects.length ? (finished.length / u.python_projects.length) * 100 : 0;
     const efficiency = u.total_python_hours > 0 ? u.python_projects.length / u.total_python_hours : 0;
+
+    // Count unique finished module slugs
+    const finishedSlugs = new Set();
+    u.python_projects.forEach(p => {
+      if (p.status === 'finished') {
+        const slug = (p.project_slug || '').toLowerCase();
+        NEW_COMMON_CORE_SLUGS.forEach(m => { if (slug.includes(m)) finishedSlugs.add(m); });
+      }
+    });
+    const numFinished = finishedSlugs.size;
+    const totalModules = NEW_COMMON_CORE_SLUGS.length;
+    const completionRate = (numFinished / totalModules) * 100;
 
     // Total completion time: days from first start to last end
     const starts = u.python_projects.map(p => p.start_date).filter(Boolean).map(d => new Date(d));
@@ -43,14 +54,15 @@ registerChart('ranking', function() {
       efficiency,
       completionDays,
       numProjects: u.python_projects.length,
-      numFinished: finished.length,
+      numFinished,
+      totalModules,
       sparkData
     };
   });
 
   // Sort
   if (sortMetric === 'marks') users.sort((a, b) => b.avgMark - a.avgMark);
-  else if (sortMetric === 'completion') users.sort((a, b) => b.completionRate - a.completionRate);
+  else if (sortMetric === 'completion') users.sort((a, b) => b.numFinished - a.numFinished || b.completionRate - a.completionRate);
   else if (sortMetric === 'efficiency') users.sort((a, b) => b.efficiency - a.efficiency);
   else if (sortMetric === 'projects') users.sort((a, b) => b.numProjects - a.numProjects);
   else users.sort((a, b) => b.hours - a.hours);
@@ -77,7 +89,7 @@ registerChart('ranking', function() {
   const offset = (page - 1) * pageSize;
   let html = `<div class="data-table-wrapper"><table class="data-table">
     <thead><tr>
-      <th>#</th><th>User</th><th>Hours</th><th>Completion Time</th><th>Avg Mark</th><th>Completion</th><th>Projects</th><th>Efficiency</th><th>Trend</th>
+      <th>#</th><th>User</th><th>Hours</th><th>Completion Time</th><th>Avg Mark</th><th>Modules</th><th>Completion</th><th>Efficiency</th><th>Trend</th>
     </tr></thead><tbody>`;
 
   pageUsers.forEach((u, i) => {
@@ -89,8 +101,8 @@ registerChart('ranking', function() {
       <td>${u.hours.toFixed(1)}h</td>
       <td>${u.completionDays !== null ? u.completionDays.toFixed(0) + 'd' : '-'}</td>
       <td>${u.avgMark.toFixed(1)}</td>
+      <td>${u.numFinished}/${u.totalModules}</td>
       <td><span class="badge ${u.completionRate >= 75 ? 'badge-finished' : u.completionRate >= 50 ? 'badge-in_progress' : 'badge-waiting'}">${u.completionRate.toFixed(0)}%</span></td>
-      <td>${u.numFinished}/${u.numProjects}</td>
       <td>${u.efficiency.toFixed(2)} proj/h</td>
       <td>${sparkline(u.sparkData)}</td>
     </tr>`;

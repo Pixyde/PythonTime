@@ -17,10 +17,23 @@ registerChart('kpi', function() {
 
   const totalHours = filteredData.reduce((s, u) => s + u.total_python_hours, 0);
   const avgScore = scored.length ? mean(scored.map(p => p.final_mark)) : 0;
-  const completionRate = allProjects.length ? (finished.length / allProjects.length) * 100 : 0;
   const validationRate = allProjects.length ? (validated.length / allProjects.length) * 100 : 0;
   const activeUsers = filteredData.length;
   const avgHoursPerUser = activeUsers ? totalHours / activeUsers : 0;
+
+  // Completion rate: % of users who finished ALL modules
+  const totalModuleCount = NEW_COMMON_CORE_SLUGS.length;
+  const usersFinishedAll = filteredData.filter(u => {
+    const finishedSlugs = new Set();
+    u.python_projects.forEach(p => {
+      if (p.status === 'finished') {
+        const slug = (p.project_slug || '').toLowerCase();
+        NEW_COMMON_CORE_SLUGS.forEach(m => { if (slug.includes(m)) finishedSlugs.add(m); });
+      }
+    });
+    return finishedSlugs.size >= totalModuleCount;
+  }).length;
+  const completionRate = activeUsers ? (usersFinishedAll / activeUsers) * 100 : 0;
 
   // Simple trend: compare first half vs second half of users
   const half = Math.floor(filteredData.length / 2);
@@ -46,7 +59,7 @@ registerChart('kpi', function() {
     { label: 'Total Hours', value: formatNumber(totalHours), icon: '⏱️', color: COLORS.primary, trend: hoursTrend },
     { label: 'Active Users', value: activeUsers, icon: '👥', color: COLORS.cyan },
     { label: 'Avg Score', value: avgScore.toFixed(1), icon: '📊', color: COLORS.purple },
-    { label: 'Completion Rate', value: completionRate.toFixed(0) + '%', icon: '✅', color: COLORS.green },
+    { label: 'Completed All Modules', value: completionRate.toFixed(0) + '%', icon: '✅', color: COLORS.green },
     { label: 'Validation Rate', value: validationRate.toFixed(0) + '%', icon: '🏆', color: COLORS.orange },
     { label: 'Avg Hours/User', value: avgHoursPerUser.toFixed(1), icon: '📈', color: COLORS.yellow },
     { label: 'Total Projects', value: allProjects.length, icon: '📦', color: COLORS.red },

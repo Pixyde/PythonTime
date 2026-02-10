@@ -393,13 +393,9 @@ const renderedSections = new Set();
 const chartSectionMap = {
   kpi: 'kpi',
   modulestats: 'modulestats', modulestatbar: 'modulestats',
-  gantt: 'timeline', heatmap: 'timeline', progress: 'timeline',
-  multibar: 'comparison', boxplot: 'comparison', radar: 'comparison',
-  scatter: 'performance', efficiency: 'performance', gauge: 'performance',
-  sankey: 'flow', funnel: 'flow', stream: 'flow',
+  funnel: 'statistical',
   histogram: 'statistical', cdf: 'statistical', correlation: 'statistical',
   ranking: 'leaderboard', bump: 'leaderboard',
-  treemap: 'advanced', sunburst: 'advanced', parallel: 'advanced', network: 'advanced',
   datatable: 'interactive', racebar: 'interactive',
   campus: 'campus', promoCompletion: 'campus', campusmodule: 'campus'
 };

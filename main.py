@@ -494,13 +494,9 @@ def generate_dashboard(results: List[Dict], output_file: str):
 
         # Read all chart modules in order
         chart_files = [
-            'charts_timeline.js',
-            'charts_comparison.js',
-            'charts_performance.js',
             'charts_flow.js',
             'charts_statistical.js',
             'charts_leaderboard.js',
-            'charts_advanced.js',
             'charts_interactive.js',
             'charts_modulestats.js',
             'charts_campus.js',
