@@ -62,6 +62,7 @@ class DashboardGenerator:
             <button class="tab" onclick="switchTab(5)">🏆 Leaderboard (2)</button>
             <button class="tab" onclick="switchTab(6)">🎨 Advanced (4)</button>
             <button class="tab" onclick="switchTab(7)">🎯 Components (3)</button>
+            <button class="tab" onclick="switchTab(8)">🏫 Campus (4)</button>
         </div>
         
         <div id="content">
@@ -669,6 +670,46 @@ const visualizations = [
                 {type: 'select', label: 'Metric', id: 'race-metric', options: ['Cumulative Hours', 'Modules Completed', 'Total Score']}
             ]
         }
+    ],
+    
+    // CAMPUS COMPARISON VISUALIZATIONS (4)
+    [
+        {
+            id: 'campus-time', title: '25. Campus Average Time Comparison',
+            description: 'Average hours per campus for Python projects',
+            controls: [
+                {type: 'range', label: 'Top N Campuses', id: 'campus-time-top', min: 5, max: 20, value: 10},
+                {type: 'select', label: 'Sort By', id: 'campus-time-sort', options: ['Average Hours', 'Student Count', 'Campus Name']},
+                {type: 'checkbox', label: 'Show Student Count', id: 'campus-time-count', checked: true}
+            ]
+        },
+        {
+            id: 'campus-completion', title: '26. Campus Completion Rate',
+            description: 'Percentage of finished projects per campus',
+            controls: [
+                {type: 'range', label: 'Top N Campuses', id: 'campus-comp-top', min: 5, max: 20, value: 10},
+                {type: 'checkbox', label: 'Show Percentage Labels', id: 'campus-comp-labels', checked: true},
+                {type: 'select', label: 'Display Type', id: 'campus-comp-type', options: ['Bar Chart', 'Donut Chart']}
+            ]
+        },
+        {
+            id: 'campus-modules', title: '27. Campus Module Distribution',
+            description: 'Which modules are most popular per campus',
+            controls: [
+                {type: 'select', label: 'Campus Selection', id: 'campus-mod-campus', options: ['All Campuses', 'Compare Top 3']},
+                {type: 'range', label: 'Top N Modules', id: 'campus-mod-top', min: 5, max: 15, value: 10},
+                {type: 'checkbox', label: 'Show Percentages', id: 'campus-mod-pct', checked: true}
+            ]
+        },
+        {
+            id: 'campus-efficiency', title: '28. Campus Efficiency Score',
+            description: 'Score per hour ratio by campus',
+            controls: [
+                {type: 'range', label: 'Top N Campuses', id: 'campus-eff-top', min: 5, max: 20, value: 10},
+                {type: 'checkbox', label: 'Show Average Score', id: 'campus-eff-score', checked: true},
+                {type: 'select', label: 'Sort By', id: 'campus-eff-sort', options: ['Efficiency', 'Average Score', 'Student Count']}
+            ]
+        }
     ]
 ];
 
@@ -686,7 +727,8 @@ function generateDashboard() {
         '📊 Statistical Visualizations',
         '🏆 Leaderboard Visualizations',
         '🎨 Advanced Visualizations',
-        '🎯 Interactive Dashboard Components'
+        '🎯 Interactive Dashboard Components',
+        '🏫 Campus Comparison'
     ];
     
     let html = '';
@@ -767,8 +809,11 @@ function generateDashboard() {
     content.innerHTML = html;
     
     // Log initialization
-    console.log('✓ Dashboard initialized with 24 visualizations');
+    console.log('✓ Dashboard initialized with 28 visualizations (including 4 campus comparisons)');
     console.log('✓ Data: ' + rawData.length + ' users, ' + Object.keys(rawStats.modules || {}).length + ' modules');
+    if (rawStats.campuses) {
+        console.log('✓ Campus data: ' + Object.keys(rawStats.campuses).length + ' campuses');
+    }
     console.log('✓ Each visualization has individual controls');
 }
 
@@ -1054,6 +1099,209 @@ function renderEfficiencyChart() {
     container.innerHTML = html;
 }
 
+// ============================================================================
+// CAMPUS COMPARISON VISUALIZATIONS
+// ============================================================================
+
+// Render Campus Average Time Comparison
+function renderCampusTimeChart() {
+    const container = document.getElementById('campus-time-chart');
+    
+    if (!rawStats.campuses || Object.keys(rawStats.campuses).length === 0) {
+        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #999;">No campus data available</div>';
+        return;
+    }
+    
+    const topN = parseInt(document.getElementById('campus-time-top')?.value || 10);
+    const campuses = Object.keys(rawStats.campuses)
+        .map(name => ({
+            name,
+            avgHours: rawStats.campuses[name].average_hours,
+            students: rawStats.campuses[name].students
+        }))
+        .sort((a, b) => b.avgHours - a.avgHours)
+        .slice(0, topN);
+    
+    const maxHours = Math.max(...campuses.map(c => c.avgHours));
+    
+    let html = '<div style="padding: 20px;">';
+    html += '<h4 style="margin-bottom: 20px; color: #667eea;">Campus Average Time Comparison</h4>';
+    
+    campuses.forEach(campus => {
+        const percentage = (campus.avgHours / maxHours) * 100;
+        html += `
+            <div style="margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="font-weight: 600;">${campus.name}</span>
+                    <span style="color: #666;">${campus.avgHours.toFixed(1)}h avg (${campus.students} students)</span>
+                </div>
+                <div style="background: #e0e0e0; height: 30px; border-radius: 5px; overflow: hidden;">
+                    <div style="background: linear-gradient(90deg, #3498db, #2980b9); height: 100%; width: ${percentage}%; transition: width 0.5s;"></div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Render Campus Completion Rate
+function renderCampusCompletionChart() {
+    const container = document.getElementById('campus-completion-chart');
+    
+    if (!rawStats.campuses || Object.keys(rawStats.campuses).length === 0) {
+        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #999;">No campus data available</div>';
+        return;
+    }
+    
+    const topN = parseInt(document.getElementById('campus-comp-top')?.value || 10);
+    const campuses = Object.keys(rawStats.campuses)
+        .map(name => ({
+            name,
+            completionRate: rawStats.campuses[name].completion_rate,
+            finished: rawStats.campuses[name].projects_finished,
+            total: rawStats.campuses[name].projects_total
+        }))
+        .sort((a, b) => b.completionRate - a.completionRate)
+        .slice(0, topN);
+    
+    const maxRate = Math.max(...campuses.map(c => c.completionRate));
+    
+    let html = '<div style="padding: 20px;">';
+    html += '<h4 style="margin-bottom: 20px; color: #27ae60;">Campus Completion Rate</h4>';
+    
+    campuses.forEach(campus => {
+        const percentage = (campus.completionRate / 100) * 100; // Already a percentage
+        const color = campus.completionRate > 80 ? '#27ae60' : campus.completionRate > 60 ? '#f39c12' : '#e74c3c';
+        html += `
+            <div style="margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="font-weight: 600;">${campus.name}</span>
+                    <span style="color: #666;">${campus.completionRate.toFixed(1)}% (${campus.finished}/${campus.total})</span>
+                </div>
+                <div style="background: #e0e0e0; height: 30px; border-radius: 5px; overflow: hidden;">
+                    <div style="background: ${color}; height: 100%; width: ${percentage}%; transition: width 0.5s;"></div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Render Campus Module Distribution
+function renderCampusModulesChart() {
+    const container = document.getElementById('campus-modules-chart');
+    
+    if (!rawData || rawData.length === 0) {
+        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #999;">No data available</div>';
+        return;
+    }
+    
+    // Group projects by campus and module
+    const campusModules = {};
+    rawData.forEach(user => {
+        const campus = user.campus_name || 'Unknown';
+        if (!campusModules[campus]) {
+            campusModules[campus] = {};
+        }
+        user.python_projects.forEach(proj => {
+            const module = proj.project_name;
+            if (!campusModules[campus][module]) {
+                campusModules[campus][module] = 0;
+            }
+            campusModules[campus][module]++;
+        });
+    });
+    
+    // Get top campus by student count
+    const topCampus = Object.keys(campusModules)
+        .map(name => ({name, total: Object.values(campusModules[name]).reduce((a, b) => a + b, 0)}))
+        .sort((a, b) => b.total - a.total)[0];
+    
+    if (!topCampus) {
+        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #999;">No module data available</div>';
+        return;
+    }
+    
+    const topN = parseInt(document.getElementById('campus-mod-top')?.value || 10);
+    const modules = Object.keys(campusModules[topCampus.name])
+        .map(name => ({name, count: campusModules[topCampus.name][name]}))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, topN);
+    
+    const maxCount = Math.max(...modules.map(m => m.count));
+    
+    let html = '<div style="padding: 20px;">';
+    html += `<h4 style="margin-bottom: 20px; color: #8e44ad;">Module Distribution - ${topCampus.name}</h4>`;
+    
+    modules.forEach(module => {
+        const percentage = (module.count / maxCount) * 100;
+        html += `
+            <div style="margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="font-weight: 600; font-size: 0.9rem;">${module.name}</span>
+                    <span style="color: #666;">${module.count} projects</span>
+                </div>
+                <div style="background: #e0e0e0; height: 25px; border-radius: 5px; overflow: hidden;">
+                    <div style="background: linear-gradient(90deg, #8e44ad, #9b59b6); height: 100%; width: ${percentage}%;"></div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Render Campus Efficiency Score
+function renderCampusEfficiencyChart() {
+    const container = document.getElementById('campus-efficiency-chart');
+    
+    if (!rawStats.campuses || Object.keys(rawStats.campuses).length === 0) {
+        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #999;">No campus data available</div>';
+        return;
+    }
+    
+    const topN = parseInt(document.getElementById('campus-eff-top')?.value || 10);
+    const campuses = Object.keys(rawStats.campuses)
+        .map(name => ({
+            name,
+            efficiency: rawStats.campuses[name].efficiency,
+            avgScore: rawStats.campuses[name].average_score,
+            avgHours: rawStats.campuses[name].average_hours,
+            students: rawStats.campuses[name].students
+        }))
+        .filter(c => c.efficiency > 0)
+        .sort((a, b) => b.efficiency - a.efficiency)
+        .slice(0, topN);
+    
+    const maxEff = Math.max(...campuses.map(c => c.efficiency));
+    
+    let html = '<div style="padding: 20px;">';
+    html += '<h4 style="margin-bottom: 20px; color: #e67e22;">Campus Efficiency (Score per Hour)</h4>';
+    
+    campuses.forEach(campus => {
+        const percentage = (campus.efficiency / maxEff) * 100;
+        html += `
+            <div style="margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="font-weight: 600;">${campus.name}</span>
+                    <span style="color: #666;">${campus.efficiency.toFixed(2)} pts/hr (avg score: ${campus.avgScore.toFixed(1)})</span>
+                </div>
+                <div style="background: #e0e0e0; height: 30px; border-radius: 5px; overflow: hidden;">
+                    <div style="background: linear-gradient(90deg, #e67e22, #d35400); height: 100%; width: ${percentage}%; transition: width 0.5s;"></div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
 // Initialize all working charts
 function initializeWorkingCharts() {
     console.log('Initializing CSS-based charts (no external dependencies)...');
@@ -1072,6 +1320,12 @@ function initializeWorkingCharts() {
             if (document.getElementById('histogram-chart')) renderHistogramChart();
             // Performance tab - chart 8
             if (document.getElementById('efficiency-chart')) renderEfficiencyChart();
+            
+            // Campus tab - charts 25-28
+            if (document.getElementById('campus-time-chart')) renderCampusTimeChart();
+            if (document.getElementById('campus-completion-chart')) renderCampusCompletionChart();
+            if (document.getElementById('campus-modules-chart')) renderCampusModulesChart();
+            if (document.getElementById('campus-efficiency-chart')) renderCampusEfficiencyChart();
             
             console.log('✓ All charts initialized successfully');
         } catch (error) {
