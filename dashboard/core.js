@@ -99,8 +99,9 @@ function getCompletionDays(project) {
   if (!project.start_date || !project.end_date) return null;
   const start = new Date(project.start_date);
   const end = new Date(project.end_date);
+  if (end <= start) return null;
   const days = (end - start) / (1000 * 60 * 60 * 24);
-  return days > 0 ? days : null;
+  return days;
 }
 
 // ---- UTILITY FUNCTIONS ----
