@@ -590,16 +590,37 @@ def main():
             print("(Filtering for NEW COMMON CORE Python modules only)")
         print("=" * 60)
         
-        # Build user -> campus mapping for multi-campus dashboard support
-        # This resolves each user's actual primary campus from the API
-        user_campus_map = client.get_user_campus_map(list(projects_map.keys()))
+        # Build user -> campus mapping from existing campus data (no extra API calls)
+        # When a campus is selected, all users belong to that campus.
+        # When ALL is selected, resolve via get_campus_users (one call per campus, cached).
+        user_campus_map = {}
+        if selected_campus_id:
+            # Single campus — all users in projects_map belong to it
+            for uid in projects_map:
+                user_campus_map[uid] = (selected_campus_name, selected_campus_id)
+        else:
+            # No campus filter — resolve by iterating campuses
+            print("\nResolving campus info from campus rosters...")
+            user_ids_set = set(projects_map.keys())
+            campuses = client.get_campuses()
+            for campus in campuses:
+                cid = campus.get('id')
+                cname = campus.get('name')
+                if not cid or not cname:
+                    continue
+                cursus_users = client.get_campus_users(cid, MAIN_CURSUS_ID)
+                for cu in cursus_users:
+                    uid = cu.get('user', {}).get('id')
+                    if uid and uid in user_ids_set and uid not in user_campus_map:
+                        user_campus_map[uid] = (cname, cid)
+            mapped = len(user_campus_map)
+            print(f"✓ Mapped {mapped}/{len(projects_map)} users to campuses")
         
         # Process users who have Python projects
         results = []
         zero_logtime_retries = 0
         for i, user_id in enumerate(projects_map.keys(), 1):
-            # Determine campus: use per-user map (supports multi-campus),
-            # fall back to CLI-selected campus if not found in map
+            # Determine campus from map
             if user_id in user_campus_map:
                 c_name, c_id = user_campus_map[user_id]
             else:
