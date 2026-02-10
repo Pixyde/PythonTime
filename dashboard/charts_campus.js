@@ -3,10 +3,34 @@
    25. Campus Comparison Dashboard
    ============================================================ */
 
+// ---- CAMPUS SECTION HELPERS ----
+function populateCampusSelect() {
+  const sel = document.getElementById('campus-select');
+  if (!sel || sel.options.length > 0) return;
+  const campuses = getAllCampuses();
+  sel.innerHTML = campuses.map(c => `<option value="${c}" selected>${c}</option>`).join('');
+}
+
+function getSelectedCampuses() {
+  const sel = document.getElementById('campus-select');
+  if (!sel || sel.options.length === 0) return [];
+  const selected = [...sel.selectedOptions].map(o => o.value);
+  return selected.length > 0 ? selected : getAllCampuses();
+}
+
+function updateCampusSection() {
+  if (chartUpdaters.campus) chartUpdaters.campus();
+  if (chartUpdaters.promoCompletion) chartUpdaters.promoCompletion();
+  if (chartUpdaters.campusmodule) chartUpdaters.campusmodule();
+}
+
 // ---- 25. CAMPUS COMPARISON ----
 registerChart('campus', function() {
   const el = document.getElementById('chart-25');
   if (!el) return;
+
+  // Populate campus dropdown on first render
+  populateCampusSelect();
 
   // Check if campus data is available
   const hasCampus = filteredData.some(u => u.campus_name);
@@ -17,11 +41,13 @@ registerChart('campus', function() {
 
   const metric = document.getElementById('campus-metric')?.value || 'avg_hours';
   const showAll = document.getElementById('campus-show-all')?.checked !== false;
+  const selectedCampuses = getSelectedCampuses();
 
-  // Group data by campus
+  // Group data by campus, filtered to selected campuses
   const campusGroups = {};
   filteredData.forEach(u => {
     const campus = u.campus_name || 'Unknown';
+    if (selectedCampuses.length && !selectedCampuses.includes(campus)) return;
     if (!campusGroups[campus]) campusGroups[campus] = [];
     campusGroups[campus].push(u);
   });
@@ -187,10 +213,13 @@ registerChart('promoCompletion', function() {
   const nccUsers = filteredData.filter(u => isNewCommonCoreUser(u));
   if (!nccUsers.length) { el.innerHTML = '<div class="chart-empty">No new common core users found</div>'; return; }
 
-  // Group by campus
+  const selectedCampuses = getSelectedCampuses();
+
+  // Group by campus, filtered to selected campuses
   const campusGroups = {};
   nccUsers.forEach(u => {
     const campus = u.campus_name || 'Unknown';
+    if (selectedCampuses.length && !selectedCampuses.includes(campus)) return;
     if (!campusGroups[campus]) campusGroups[campus] = [];
     campusGroups[campus].push(u);
   });
@@ -281,10 +310,13 @@ registerChart('campusmodule', function() {
 
   const metricSel = document.getElementById('campus-module-metric')?.value || 'avg_hours';
 
-  // Group by campus
+  const selectedCampuses = getSelectedCampuses();
+
+  // Group by campus, filtered to selected campuses
   const campusGroups = {};
   filteredData.forEach(u => {
     const campus = u.campus_name || 'Unknown';
+    if (selectedCampuses.length && !selectedCampuses.includes(campus)) return;
     if (!campusGroups[campus]) campusGroups[campus] = [];
     campusGroups[campus].push(u);
   });
