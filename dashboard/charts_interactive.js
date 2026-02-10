@@ -74,7 +74,7 @@ registerChart('kpi', function() {
     { label: 'Avg Score', value: avgScore.toFixed(1), icon: '📊', color: COLORS.purple },
     { label: 'Completed All Modules', value: completionRate.toFixed(0) + '% (' + usersFinishedAll + ')', icon: '✅', color: COLORS.green },
     { label: 'Avg Time (All Users)', value: avgCompletionDays > 0 ? avgCompletionDays.toFixed(0) + 'd' : '-', icon: '📅', color: COLORS.orange },
-    { label: 'Avg Time to Complete All ' + totalModuleCount + ' Modules', value: avgAllDoneDays > 0 ? avgAllDoneDays.toFixed(0) + 'd' : '-', icon: '🎯', color: COLORS.green },
+    { label: `Avg Time to Complete All ${totalModuleCount} Modules`, value: avgAllDoneDays > 0 ? avgAllDoneDays.toFixed(0) + 'd' : '-', icon: '🎯', color: COLORS.green },
     { label: 'Avg Hours/User', value: avgHoursPerUser.toFixed(1), icon: '📈', color: COLORS.yellow },
     { label: 'Validation Rate', value: validationRate.toFixed(0) + '%', icon: '🏆', color: COLORS.orange },
     { label: 'Total Projects', value: allProjects.length, icon: '📦', color: COLORS.red },
