@@ -399,7 +399,7 @@ const chartSectionMap = {
   modulestats: 'modulestats', modulestatbar: 'modulestats',
   funnel: 'statistical',
   moduleprogress: 'statistical',
-  ranking: 'leaderboard',
+  ranking: 'leaderboard', topbar: 'leaderboard',
   datatable: 'interactive', racebar: 'interactive',
   campus: 'campus', promoCompletion: 'campus', campusmodule: 'campus'
 };

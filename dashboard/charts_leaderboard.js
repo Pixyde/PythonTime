@@ -113,3 +113,74 @@ registerChart('ranking', function() {
 
   el.innerHTML = html;
 });
+
+// ---- 31. TOP N LEADERBOARD BAR CHART ----
+registerChart('topbar', function() {
+  const el = document.getElementById('chart-31');
+  if (!el) return;
+  if (!filteredData.length) { el.innerHTML = '<div class="chart-empty">No data</div>'; return; }
+
+  const category = document.getElementById('topbar-category')?.value || 'fastest';
+  const topN = parseInt(document.getElementById('topbar-n')?.value || '10');
+
+  // Build user stats
+  let users = filteredData.map(u => {
+    const scored = u.python_projects.filter(p => p.final_mark !== null && p.final_mark !== undefined);
+    const avgMark = scored.length ? mean(scored.map(p => p.final_mark)) : 0;
+    const numFinished = countFinishedModules(u);
+    const starts = u.python_projects.map(p => p.start_date).filter(Boolean).map(d => new Date(d));
+    const ends = u.python_projects.map(p => p.end_date).filter(Boolean).map(d => new Date(d));
+    let completionDays = null;
+    if (starts.length && ends.length) {
+      const days = (new Date(Math.max(...ends)) - new Date(Math.min(...starts))) / MS_PER_DAY;
+      if (days > 0) completionDays = days;
+    }
+    return { login: u.login, hours: u.total_python_hours, avgMark, numFinished, completionDays, numProjects: u.python_projects.length };
+  });
+
+  let title = '', valueKey = '', valueFmt = v => v, sortAsc = false, barColor = COLORS.primary;
+  if (category === 'fastest') {
+    users = users.filter(u => u.completionDays !== null && u.numFinished === getAllModules().length);
+    users.sort((a, b) => a.completionDays - b.completionDays);
+    title = 'Fastest to Complete All Modules (days)';
+    valueKey = 'completionDays'; valueFmt = v => v.toFixed(0) + 'd'; sortAsc = true; barColor = COLORS.green;
+  } else if (category === 'hours') {
+    users.sort((a, b) => b.hours - a.hours);
+    title = 'Most Hours Logged'; valueKey = 'hours'; valueFmt = v => v.toFixed(1) + 'h'; barColor = COLORS.primary;
+  } else if (category === 'marks') {
+    users.sort((a, b) => b.avgMark - a.avgMark);
+    title = 'Highest Average Mark'; valueKey = 'avgMark'; valueFmt = v => v.toFixed(1); barColor = COLORS.orange;
+  } else if (category === 'modules') {
+    users.sort((a, b) => b.numFinished - a.numFinished);
+    title = 'Most Modules Finished'; valueKey = 'numFinished'; valueFmt = v => v.toString(); barColor = COLORS.cyan;
+  }
+
+  const top = users.slice(0, topN);
+  if (!top.length) { el.innerHTML = '<div class="chart-empty">No qualifying users</div>'; return; }
+
+  // Reverse for horizontal bar (Plotly renders bottom-up)
+  const labels = top.map(u => u.login).reverse();
+  const values = top.map(u => u[valueKey]).reverse();
+
+  const trace = {
+    type: 'bar',
+    orientation: 'h',
+    y: labels,
+    x: values,
+    marker: { color: barColor },
+    text: values.map(v => valueFmt(v)),
+    textposition: 'outside',
+    textfont: { size: 10, color: '#8e8e8e' }
+  };
+
+  const layout = {
+    ...PLOTLY_LAYOUT_DEFAULTS,
+    title: { text: title, font: { size: 13, color: '#c0c0c0' } },
+    xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, title: '' },
+    yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, title: '' },
+    margin: { t: 40, r: 60, b: 30, l: 120 },
+    height: Math.max(300, top.length * 30 + 80)
+  };
+
+  Plotly.react(el, [trace], layout, PLOTLY_CONFIG);
+});

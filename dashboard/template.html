@@ -145,6 +145,15 @@
 <div class="section" data-section="leaderboard">
   <div class="section-title">🏆 Leaderboard Visualizations</div>
   <div class="grid grid-full">
+    <!-- 31. Top N Bar Chart -->
+    <div class="panel">
+      <div class="panel-header"><h3><span class="panel-number">31</span> Top Students Bar Chart</h3><span class="panel-badge">Leaderboard</span></div>
+      <div class="panel-controls">
+        <div class="ctrl"><label>Category</label><select id="topbar-category" onchange="chartUpdaters.topbar()"><option value="fastest">Fastest to Finish</option><option value="hours">Most Hours</option><option value="marks">Highest Marks</option><option value="modules">Most Modules</option></select></div>
+        <div class="ctrl"><label>Show Top</label><select id="topbar-n" onchange="chartUpdaters.topbar()"><option value="5">5</option><option value="10" selected>10</option><option value="15">15</option><option value="20">20</option></select></div>
+      </div>
+      <div class="panel-body"><div id="chart-31" class="chart-container"></div></div>
+    </div>
     <!-- 16. Ranking Table -->
     <div class="panel">
       <div class="panel-header"><h3><span class="panel-number">16</span> Ranking Table with Sparklines</h3><span class="panel-badge">Leaderboard</span></div>

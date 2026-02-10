@@ -14,7 +14,7 @@ registerChart('moduleprogress', function() {
   const totalModules = allModuleNames.length;
 
   if (viewMode === 'completed') {
-    // Show % of users who completed each module
+    // Show how many users completed each module (user counts on y-axis)
     const moduleCounts = {};
     allModuleNames.forEach(m => { moduleCounts[m] = 0; });
 
@@ -27,14 +27,15 @@ registerChart('moduleprogress', function() {
     });
 
     const names = allModuleNames.slice();
-    const pcts = names.map(m => (moduleCounts[m] / totalUsers) * 100);
+    const counts = names.map(m => moduleCounts[m]);
+    const pcts = counts.map(c => (c / totalUsers) * 100);
 
     const trace = {
       type: 'bar',
       x: names,
-      y: pcts,
+      y: counts,
       marker: { color: pcts.map(p => p >= 50 ? COLORS.green : p >= 25 ? COLORS.orange : COLORS.red) },
-      text: pcts.map((p, i) => `${p.toFixed(0)}% (${moduleCounts[names[i]]}/${totalUsers})`),
+      text: counts.map((c, i) => `${pcts[i].toFixed(0)}% (${c}/${totalUsers})`),
       textposition: 'outside',
       textfont: { size: 9, color: '#8e8e8e' }
     };
@@ -42,12 +43,12 @@ registerChart('moduleprogress', function() {
     const layout = {
       ...PLOTLY_LAYOUT_DEFAULTS,
       xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, title: 'Module', tickangle: -30 },
-      yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, title: '% of Users Who Completed', range: [0, Math.max(...pcts, 10) * 1.15] }
+      yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, title: 'Number of Users', range: [0, Math.max(...counts, 1) * 1.2] }
     };
     Plotly.react(el, [trace], layout, PLOTLY_CONFIG);
 
   } else {
-    // Show % of users at each module stage (how many modules finished)
+    // Show how many users at each module stage (user counts on y-axis)
     const stageCounts = new Array(totalModules + 1).fill(0);
 
     filteredData.forEach(u => {
@@ -61,11 +62,11 @@ registerChart('moduleprogress', function() {
     const trace = {
       type: 'bar',
       x: labels,
-      y: pcts,
+      y: stageCounts,
       marker: {
         color: labels.map((_, i) => i === totalModules ? COLORS.green : i >= totalModules * 0.75 ? COLORS.cyan : i >= totalModules * 0.5 ? COLORS.orange : COLORS.red)
       },
-      text: pcts.map((p, i) => `${p.toFixed(1)}% (${stageCounts[i]})`),
+      text: stageCounts.map((c, i) => `${pcts[i].toFixed(1)}% (${c})`),
       textposition: 'outside',
       textfont: { size: 9, color: '#8e8e8e' }
     };
@@ -73,7 +74,7 @@ registerChart('moduleprogress', function() {
     const layout = {
       ...PLOTLY_LAYOUT_DEFAULTS,
       xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, title: 'Modules Finished' },
-      yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, title: '% of Users', range: [0, Math.max(...pcts, 10) * 1.15] }
+      yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, title: 'Number of Users', range: [0, Math.max(...stageCounts, 1) * 1.2] }
     };
     Plotly.react(el, [trace], layout, PLOTLY_CONFIG);
   }
