@@ -416,7 +416,7 @@ class API42Client:
         """
         # Calculate total logtime
         from data_processor import DataProcessor
-        total_logtime = sum(DataProcessor.calculate_log_time(loc) for loc in locations)
+        total_logtime = sum(DataProcessor.calculate_logtime_duration(loc) for loc in locations)
         
         # Count finished projects
         finished_count = sum(1 for p in projects if p.get('status') == 'finished')
@@ -439,7 +439,7 @@ class API42Client:
             
             # Fetch fresh data
             fresh_locations = self.get_user_locations(user_id, begin_at, end_at)
-            fresh_logtime = sum(DataProcessor.calculate_log_time(loc) for loc in fresh_locations)
+            fresh_logtime = sum(DataProcessor.calculate_logtime_duration(loc) for loc in fresh_locations)
             print(f"      ✓ Refetched: {fresh_logtime:.2f}h (from {len(fresh_locations)} location entries)")
             
             return fresh_locations
