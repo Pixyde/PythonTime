@@ -53,3 +53,8 @@ output/
 
 # Cache directory
 .cache/
+
+# Test files (temporary verification)
+test_cache_validation.py
+test_cache_integration.py
+test_zero_hour_detection.py
