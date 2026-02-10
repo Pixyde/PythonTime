@@ -466,36 +466,63 @@ def display_statistics(results: List[Dict], stats: Dict):
 def generate_dashboard(results: List[Dict], output_file: str):
     """
     Generate an interactive HTML dashboard from results.
-    
-    Creates a comprehensive dashboard with 24 visualization types,
-    each with their own sliders and controls, plus global filters.
-    
+
+    Assembles a comprehensive single-file dashboard from modular template
+    parts in the dashboard/ directory.  The output contains 25 visualization
+    types (24 standard + campus comparison), each with their own sliders
+    and controls, plus global filters.
+
     Args:
         results: List of user data dictionaries
         output_file: Path to save the dashboard HTML file
     """
     print("\n📊 Generating interactive dashboard...")
-    
+
     try:
-        # Read the template
-        template_path = os.path.join(os.path.dirname(__file__), 'dashboard_template.html')
-        with open(template_path, 'r', encoding='utf-8') as f:
-            template = f.read()
-        
+        dashboard_dir = os.path.join(os.path.dirname(__file__), 'dashboard')
+
+        # Read template parts
+        def read_part(filename):
+            path = os.path.join(dashboard_dir, filename)
+            with open(path, 'r', encoding='utf-8') as f:
+                return f.read()
+
+        template = read_part('template.html')
+        styles = read_part('styles.css')
+        core_js = read_part('core.js')
+
+        # Read all chart modules in order
+        chart_files = [
+            'charts_timeline.js',
+            'charts_comparison.js',
+            'charts_performance.js',
+            'charts_flow.js',
+            'charts_statistical.js',
+            'charts_leaderboard.js',
+            'charts_advanced.js',
+            'charts_interactive.js',
+            'charts_campus.js',
+        ]
+        charts_js = '\n'.join(read_part(f) for f in chart_files)
+
         # Convert results to JSON
         data_json = json.dumps(results, indent=2)
-        
-        # Replace placeholder with actual data
-        dashboard_html = template.replace('{{DATA_PLACEHOLDER}}', data_json)
-        
+
+        # Assemble dashboard: inject CSS, JS, and data into the template
+        html = template
+        html = html.replace('{{STYLES}}', styles)
+        html = html.replace('{{CORE_JS}}', core_js)
+        html = html.replace('{{CHARTS_JS}}', charts_js)
+        html = html.replace('{{DATA_PLACEHOLDER}}', data_json)
+
         # Save dashboard
         dashboard_file = output_file.replace('.json', '_dashboard.html')
         with open(dashboard_file, 'w', encoding='utf-8') as f:
-            f.write(dashboard_html)
-        
+            f.write(html)
+
         print(f"  ✓ Dashboard saved to: {dashboard_file}")
         print(f"  ✓ Open in browser to view interactive visualizations!")
-        
+
         return dashboard_file
     except Exception as e:
         print(f"  ⚠️  Could not generate dashboard: {e}")
