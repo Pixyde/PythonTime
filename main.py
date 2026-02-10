@@ -13,27 +13,11 @@ from api_client import API42Client
 from data_processor import DataProcessor
 
 
-# Campus IDs (you may need to adjust these)
-# Common campus IDs:
-# Paris: 1
-# Lyon: 6
-# Havre: Need to be determined (you can find it via API)
-HAVRE_CAMPUS_ID = 14  # This is an example, adjust as needed
-
 # Cursus ID for 42 cursus
 MAIN_CURSUS_ID = 21
 
 # New Common Core - Filter for only new common core modules
-# The new common core uses a different cursus or has specific identifiers
-# You can filter by:
-# 1. Cursus ID (if new common core has a different cursus ID)
-# 2. Project slugs/names (specific to new common core)
-# 3. Begin date range (new common core started at a specific date)
 USE_NEW_COMMON_CORE_ONLY = True  # Set to True to filter only new common core modules
-
-# API Call Optimization Settings
-# Set to limit student processing (useful for testing)
-MAX_STUDENTS = None  # Set to a number (e.g., 50) to limit, or None for all students
 
 # Date range for location data (reduces API response size)
 # Set to None to fetch all location history
@@ -58,7 +42,7 @@ def load_config():
     return client_id, client_secret
 
 
-def select_campus(client: API42Client) -> int:
+def select_campus(client: API42Client) -> tuple:
     """
     Let user select a campus from the available list
     
@@ -66,7 +50,7 @@ def select_campus(client: API42Client) -> int:
         client: API client instance
         
     Returns:
-        Selected campus ID, or None for no filtering
+        Tuple of (campus_id, campus_name), or (None, None) for no filtering
     """
     print("\n" + "=" * 60)
     print("CAMPUS SELECTION")
@@ -76,7 +60,7 @@ def select_campus(client: API42Client) -> int:
     
     if not campuses:
         print("No campuses found. Analyzing all users globally.")
-        return None
+        return None, None
     
     # Sort campuses by name for easier navigation
     campuses.sort(key=lambda c: c.get('name', ''))
@@ -106,13 +90,13 @@ def select_campus(client: API42Client) -> int:
             
             if idx == 0:
                 print(f"\n✓ Selected: ALL USERS (No campus filtering)")
-                return None  # None means no filtering
+                return None, None
             elif 1 <= idx <= len(campuses):
                 selected_campus = campuses[idx - 1]
                 campus_id = selected_campus.get('id')
                 campus_name = selected_campus.get('name')
                 print(f"\n✓ Selected: {campus_name} (ID: {campus_id})")
-                return campus_id
+                return campus_id, campus_name
             else:
                 print(f"Please enter a number between 0 and {len(campuses)}")
         except ValueError:
@@ -313,7 +297,7 @@ def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_
     return users_projects_map
 
 
-def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]], locations_map: Dict[int, List[Dict]], new_common_core_only: bool = False) -> Dict:
+def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]], locations_map: Dict[int, List[Dict]], new_common_core_only: bool = False, campus_name: str = None, campus_id: int = None) -> Dict:
     """
     Process a user's data using pre-fetched project and location data
     
@@ -322,6 +306,8 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
         projects_map: Map of user_id -> projects list
         locations_map: Map of user_id -> locations list
         new_common_core_only: If True, filter to only new common core modules
+        campus_name: Optional campus name to attach to user record
+        campus_id: Optional campus ID to attach to user record
         
     Returns:
         Dictionary with user's Python project analysis
@@ -353,7 +339,7 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
         # cursus_level might not be directly available, set to 0 or extract from user data
         cursus_level = 0
     
-    return {
+    result = {
         'user_id': user_id,
         'login': login,
         'email': email,
@@ -361,6 +347,14 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
         'python_projects': analysis,
         'total_python_hours': sum(p['time_spent_hours'] for p in analysis)
     }
+    
+    # Attach campus info if available (used by campus comparison dashboard)
+    if campus_name:
+        result['campus_name'] = campus_name
+    if campus_id is not None:
+        result['campus_id'] = campus_id
+    
+    return result
 
 
 def calculate_module_statistics(results: List[Dict]) -> Dict:
@@ -555,7 +549,7 @@ def main():
             print(f"Cache: {cache_stats['total_files']} files, {cache_stats['total_size_mb']} MB")
         
         # Let user select campus
-        selected_campus_id = select_campus(client)
+        selected_campus_id, selected_campus_name = select_campus(client)
         
         # PROJECT-BASED USER FETCHING
         print("\n" + "=" * 60)
@@ -597,21 +591,54 @@ def main():
         
         # Process users who have Python projects
         results = []
+        zero_logtime_retries = 0
         for i, user_id in enumerate(projects_map.keys(), 1):
             user_data = process_user_from_projects(
                 user_id,
                 projects_map, 
                 locations_map,
-                new_common_core_only=USE_NEW_COMMON_CORE_ONLY
+                new_common_core_only=USE_NEW_COMMON_CORE_ONLY,
+                campus_name=selected_campus_name,
+                campus_id=selected_campus_id
             )
             if user_data:
-                results.append(user_data)
-                print(f"[{i}/{len(projects_map)}] {user_data['login']}: {user_data['total_python_hours']:.2f}h across {len(user_data['python_projects'])} projects")
+                # If total hours is 0, invalidate cache and re-fetch locations
+                if user_data['total_python_hours'] == 0:
+                    print(f"[{i}/{len(projects_map)}] {user_data['login']}: 0h detected — clearing cache and re-fetching locations...")
+                    fresh_locations = client.refetch_user_locations(
+                        user_id,
+                        begin_at=LOCATION_BEGIN_DATE,
+                        end_at=LOCATION_END_DATE
+                    )
+                    locations_map[user_id] = fresh_locations
+                    zero_logtime_retries += 1
+                    # Re-process with fresh location data
+                    user_data = process_user_from_projects(
+                        user_id,
+                        projects_map,
+                        locations_map,
+                        new_common_core_only=USE_NEW_COMMON_CORE_ONLY,
+                        campus_name=selected_campus_name,
+                        campus_id=selected_campus_id
+                    )
+                    if user_data:
+                        results.append(user_data)
+                        print(f"[{i}/{len(projects_map)}] {user_data['login']}: {user_data['total_python_hours']:.2f}h across {len(user_data['python_projects'])} projects (after retry)")
+                    else:
+                        projects = projects_map.get(user_id, [])
+                        login = projects[0].get('user', {}).get('login', 'unknown') if projects else 'unknown'
+                        print(f"[{i}/{len(projects_map)}] {login}: No Python projects (after retry)")
+                else:
+                    results.append(user_data)
+                    print(f"[{i}/{len(projects_map)}] {user_data['login']}: {user_data['total_python_hours']:.2f}h across {len(user_data['python_projects'])} projects")
             else:
                 # Get login from projects if available
                 projects = projects_map.get(user_id, [])
                 login = projects[0].get('user', {}).get('login', 'unknown') if projects else 'unknown'
                 print(f"[{i}/{len(projects_map)}] {login}: No Python projects (after filtering)")
+        
+        if zero_logtime_retries:
+            print(f"\n⟳ Re-fetched locations for {zero_logtime_retries} user(s) with 0h logtime")
         
         # Save results
         output_file = f"python_time_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"

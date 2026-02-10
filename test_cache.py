@@ -89,6 +89,40 @@ def test_cache_expiry():
         shutil.rmtree(".test_cache")
 
 
+def test_cache_invalidate():
+    """Test invalidating a specific cache entry"""
+    print("\nTesting cache invalidate...")
+
+    cache = CacheManager(cache_dir=".test_cache", cache_ttl_hours=1)
+
+    # Set two entries
+    cache.set("/v2/users/1/locations", [{"begin_at": "2025-01-01"}], {"paginated": "all"})
+    cache.set("/v2/users/2/locations", [{"begin_at": "2025-02-01"}], {"paginated": "all"})
+
+    # Verify both exist
+    assert cache.get("/v2/users/1/locations", {"paginated": "all"}) is not None
+    assert cache.get("/v2/users/2/locations", {"paginated": "all"}) is not None
+    print("  ✓ Both entries exist in cache")
+
+    # Invalidate only user 1
+    cache.invalidate("/v2/users/1/locations", {"paginated": "all"})
+
+    # User 1 should be gone, user 2 still present
+    assert cache.get("/v2/users/1/locations", {"paginated": "all"}) is None
+    assert cache.get("/v2/users/2/locations", {"paginated": "all"}) is not None
+    print("  ✓ Invalidated entry returns None, other entry still exists")
+
+    # Invalidating a non-existent entry should not error
+    cache.invalidate("/v2/users/999/locations", {"paginated": "all"})
+    print("  ✓ Invalidating non-existent entry is safe")
+
+    # Cleanup
+    cache.clear()
+    import shutil
+    if os.path.exists(".test_cache"):
+        shutil.rmtree(".test_cache")
+
+
 def main():
     """Run all cache tests"""
     print("=" * 60)
@@ -99,6 +133,7 @@ def main():
         test_cache_basic,
         test_cache_stats,
         test_cache_expiry,
+        test_cache_invalidate,
     ]
     
     failed = 0

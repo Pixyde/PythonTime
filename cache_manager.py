@@ -127,6 +127,22 @@ class CacheManager:
                 cache_file.unlink()
             except IOError:
                 pass
+
+    def invalidate(self, endpoint: str, params: Optional[Dict] = None):
+        """
+        Invalidate (delete) a specific cache entry
+
+        Args:
+            endpoint: API endpoint
+            params: Query parameters
+        """
+        cache_key = self._get_cache_key(endpoint, params)
+        cache_path = self._get_cache_path(cache_key)
+        try:
+            if cache_path.exists():
+                cache_path.unlink()
+        except IOError:
+            pass
     
     def get_cache_stats(self) -> Dict[str, Any]:
         """
