@@ -76,11 +76,6 @@ const NEW_COMMON_CORE_SLUGS = [
   'python-module-04',
   'piscine-python',
   'piscine-python-datascience',
-  'django-0-starting',
-  'django-1-base-django',
-  'django-2-sql',
-  'django-3-advanced',
-  'django-4-final',
 ];
 
 function isNewCommonCoreProject(project) {
@@ -394,8 +389,8 @@ const chartSectionMap = {
   kpi: 'kpi',
   modulestats: 'modulestats', modulestatbar: 'modulestats',
   funnel: 'statistical',
-  histogram: 'statistical', cdf: 'statistical', correlation: 'statistical',
-  ranking: 'leaderboard', bump: 'leaderboard',
+  moduleprogress: 'statistical',
+  ranking: 'leaderboard',
   datatable: 'interactive', racebar: 'interactive',
   campus: 'campus', promoCompletion: 'campus', campusmodule: 'campus'
 };

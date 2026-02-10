@@ -35,14 +35,13 @@ registerChart('modulestats', function() {
   let stats = Object.entries(moduleMap).map(([name, d]) => {
     const avgH = mean(d.hours);
     const medH = median(d.hours);
-    const stdH = stddev(d.hours);
     const minH = Math.min(...d.hours);
     const maxH = Math.max(...d.hours);
     const avgMark = d.marks.length ? mean(d.marks) : null;
     const medMark = d.marks.length ? median(d.marks) : null;
     const completionPct = d.total > 0 ? (d.finished / d.total) * 100 : 0;
     const validationPct = d.total > 0 ? (d.validated / d.total) * 100 : 0;
-    return { name, avgH, medH, stdH, minH, maxH, avgMark, medMark, completionPct, validationPct, students: d.users.size, total: d.total };
+    return { name, avgH, medH, minH, maxH, avgMark, medMark, completionPct, validationPct, students: d.users.size, total: d.total };
   });
 
   // Sort
@@ -63,11 +62,10 @@ registerChart('modulestats', function() {
   const allMarks = stats.flatMap(s => moduleMap[s.name].marks);
   const overallAvgH = mean(allHours);
   const overallMedH = median(allHours);
-  const overallStdH = stddev(allHours);
 
   // Render table
   let html = '<div class="data-table-wrapper"><table class="data-table"><thead><tr>';
-  html += '<th>Module</th><th>Students</th><th>Avg Hours</th><th>Median Hours</th><th>Std Dev</th><th>Min</th><th>Max</th>';
+  html += '<th>Module</th><th>Students</th><th>Avg Hours</th><th>Median Hours</th><th>Min</th><th>Max</th>';
   html += '<th>Avg Mark</th><th>Median Mark</th><th>Completion %</th><th>Validation %</th>';
   html += '</tr></thead><tbody>';
 
@@ -77,7 +75,6 @@ registerChart('modulestats', function() {
   html += `<td>${totalUsers}</td>`;
   html += `<td>${overallAvgH.toFixed(1)}h</td>`;
   html += `<td>${overallMedH.toFixed(1)}h</td>`;
-  html += `<td>${overallStdH.toFixed(1)}</td>`;
   html += `<td>${allHours.length ? Math.min(...allHours).toFixed(1) : '-'}h</td>`;
   html += `<td>${allHours.length ? Math.max(...allHours).toFixed(1) : '-'}h</td>`;
   html += `<td>${allMarks.length ? mean(allMarks).toFixed(1) : '-'}</td>`;
@@ -91,7 +88,6 @@ registerChart('modulestats', function() {
     html += `<td>${s.students}</td>`;
     html += `<td>${s.avgH.toFixed(1)}h</td>`;
     html += `<td>${s.medH.toFixed(1)}h</td>`;
-    html += `<td>${s.stdH.toFixed(1)}</td>`;
     html += `<td>${s.minH.toFixed(1)}h</td>`;
     html += `<td>${s.maxH.toFixed(1)}h</td>`;
     html += `<td>${s.avgMark !== null ? s.avgMark.toFixed(1) : '-'}</td>`;
@@ -112,7 +108,6 @@ registerChart('modulestatbar', function() {
   if (!filteredData.length) { el.innerHTML = '<div class="chart-empty">No data</div>'; return; }
 
   const showMedian = document.getElementById('modbar-median')?.checked !== false;
-  const showStdDev = document.getElementById('modbar-stddev')?.checked || false;
 
   // Collect per-module hours
   const moduleMap = {};
@@ -126,13 +121,11 @@ registerChart('modulestatbar', function() {
   const modules = Object.keys(moduleMap).sort();
   const avgs = modules.map(m => mean(moduleMap[m]));
   const meds = modules.map(m => median(moduleMap[m]));
-  const stds = modules.map(m => stddev(moduleMap[m]));
 
   // Total across all modules
   const allHours = Object.values(moduleMap).flat();
   const totalAvg = mean(allHours);
   const totalMed = median(allHours);
-  const totalStd = stddev(allHours);
 
   const xLabels = [...modules, '⊕ Total'];
 
@@ -145,7 +138,6 @@ registerChart('modulestatbar', function() {
     x: xLabels,
     y: [...avgs, totalAvg],
     marker: { color: [...modules.map(() => COLORS.primary), COLORS.green] },
-    error_y: showStdDev ? { type: 'data', array: [...stds, totalStd], visible: true, color: '#8e8e8e' } : undefined,
     text: [...avgs, totalAvg].map(v => v.toFixed(1) + 'h'),
     textposition: 'outside',
     textfont: { size: 9, color: '#8e8e8e' }

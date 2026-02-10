@@ -109,7 +109,6 @@
       <div class="panel-header"><h3><span class="panel-number">27</span> Average Time per Module (Bar Chart)</h3><span class="panel-badge">Module Stats</span></div>
       <div class="panel-controls">
         <label class="ctrl-toggle"><input type="checkbox" id="modbar-median" checked onchange="chartUpdaters.modulestatbar()"> Show Median</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="modbar-stddev" onchange="chartUpdaters.modulestatbar()"> Show Std Dev</label>
       </div>
       <div class="panel-body"><div id="chart-27" class="chart-container"></div></div>
     </div>
@@ -131,36 +130,13 @@
       </div>
       <div class="panel-body"><div id="chart-11" class="chart-container"></div></div>
     </div>
+    <!-- Module Progress Distribution -->
     <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">13</span> Histogram - Module Completion Time Distribution</h3><span class="panel-badge">Statistical</span></div>
+      <div class="panel-header"><h3><span class="panel-number">30</span> Module Progress Distribution</h3><span class="panel-badge">Statistical</span></div>
       <div class="panel-controls">
-        <div class="ctrl"><label>Bin Size</label><input type="range" id="histogram-bins" min="1" max="20" value="5" oninput="this.nextElementSibling.textContent=this.value+'d';chartUpdaters.histogram()"><span class="range-value">5d</span></div>
-        <label class="ctrl-toggle"><input type="checkbox" id="histogram-split" onchange="chartUpdaters.histogram()"> Split by Module</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="histogram-mean" checked onchange="chartUpdaters.histogram()"> Mean Line</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="histogram-median" onchange="chartUpdaters.histogram()"> Median Line</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="histogram-normal" onchange="chartUpdaters.histogram()"> Normal Curve</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="histogram-log" onchange="chartUpdaters.histogram()"> Log Scale</label>
+        <div class="ctrl"><label>View</label><select id="modprogress-view" onchange="chartUpdaters.moduleprogress()"><option value="stage">% at Each Module Stage</option><option value="completed">% Who Completed Each Module</option></select></div>
       </div>
-      <div class="panel-body"><div id="chart-13" class="chart-container"></div></div>
-    </div>
-    <!-- 14. CDF -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">14</span> Cumulative Distribution (CDF) — Completion Time</h3><span class="panel-badge">Statistical</span></div>
-      <div class="panel-controls">
-        <label class="ctrl-toggle"><input type="checkbox" id="cdf-module" onchange="chartUpdaters.cdf()"> Per Module</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="cdf-p50" checked onchange="chartUpdaters.cdf()"> P50</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="cdf-p75" onchange="chartUpdaters.cdf()"> P75</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="cdf-p90" onchange="chartUpdaters.cdf()"> P90</label>
-      </div>
-      <div class="panel-body"><div id="chart-14" class="chart-container"></div></div>
-    </div>
-    <!-- 15. Correlation Matrix -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">15</span> Correlation Matrix</h3><span class="panel-badge">Statistical</span></div>
-      <div class="panel-controls">
-        <label class="ctrl-toggle"><input type="checkbox" id="corr-values" checked onchange="chartUpdaters.correlation()"> Show Values</label>
-      </div>
-      <div class="panel-body"><div id="chart-15" class="chart-container"></div></div>
+      <div class="panel-body"><div id="chart-30" class="chart-container"></div></div>
     </div>
   </div>
 </div>
@@ -168,7 +144,7 @@
 <!-- ===== LEADERBOARD SECTION ===== -->
 <div class="section" data-section="leaderboard">
   <div class="section-title">🏆 Leaderboard Visualizations</div>
-  <div class="grid">
+  <div class="grid grid-full">
     <!-- 16. Ranking Table -->
     <div class="panel">
       <div class="panel-header"><h3><span class="panel-number">16</span> Ranking Table with Sparklines</h3><span class="panel-badge">Leaderboard</span></div>
@@ -176,15 +152,6 @@
         <div class="ctrl"><label>Sort By</label><select id="ranking-sort" onchange="chartUpdaters.ranking()"><option value="hours">Hours</option><option value="marks">Marks</option><option value="completion">Completion</option><option value="efficiency">Efficiency</option><option value="projects">Projects</option></select></div>
       </div>
       <div class="panel-body" id="chart-16"></div>
-    </div>
-    <!-- 17. Bump Chart -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">17</span> Bump Chart (Rank Over Time)</h3><span class="panel-badge">Leaderboard</span></div>
-      <div class="panel-controls">
-        <div class="ctrl"><label>Top N</label><input type="range" id="bump-top" min="3" max="20" value="10" oninput="this.nextElementSibling.textContent=this.value;chartUpdaters.bump()"><span class="range-value">10</span></div>
-        <div class="ctrl"><label>Highlight</label><select id="bump-highlight" onchange="chartUpdaters.bump()"><option value="">None</option></select></div>
-      </div>
-      <div class="panel-body"><div id="chart-17" class="chart-container"></div></div>
     </div>
   </div>
 </div>

@@ -26,11 +26,6 @@ class DataProcessor:
         'python-module-04',
         'piscine-python',
         'piscine-python-datascience',
-        'django-0-starting',
-        'django-1-base-django',
-        'django-2-sql',
-        'django-3-advanced',
-        'django-4-final',
     ]
     
     @staticmethod

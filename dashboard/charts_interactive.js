@@ -23,7 +23,7 @@ registerChart('kpi', function() {
 
   // Completion rate: % of users who finished ALL modules
   const totalModuleCount = NEW_COMMON_CORE_SLUGS.length;
-  const usersFinishedAll = filteredData.filter(u => {
+  const usersWhoFinishedAll = filteredData.filter(u => {
     const finishedSlugs = new Set();
     u.python_projects.forEach(p => {
       if (p.status === 'finished') {
@@ -32,7 +32,8 @@ registerChart('kpi', function() {
       }
     });
     return finishedSlugs.size >= totalModuleCount;
-  }).length;
+  });
+  const usersFinishedAll = usersWhoFinishedAll.length;
   const completionRate = activeUsers ? (usersFinishedAll / activeUsers) * 100 : 0;
 
   // Simple trend: compare first half vs second half of users
@@ -41,7 +42,7 @@ registerChart('kpi', function() {
   const secondHalfHours = filteredData.slice(half).reduce((s, u) => s + u.total_python_hours, 0);
   const hoursTrend = half > 0 ? ((secondHalfHours / Math.max(firstHalfHours, 1)) - 1) * 100 : 0;
 
-  // Average total completion time: days from first project start to last project end per user
+  // Average total completion time (all users): days from first project start to last project end
   const completionDays = [];
   filteredData.forEach(u => {
     const starts = u.python_projects.map(p => p.start_date).filter(Boolean).map(d => new Date(d));
@@ -55,16 +56,28 @@ registerChart('kpi', function() {
   });
   const avgCompletionDays = completionDays.length ? mean(completionDays) : 0;
 
+  // Average time to complete ALL modules (only users who finished all)
+  const allDoneDays = [];
+  usersWhoFinishedAll.forEach(u => {
+    const starts = u.python_projects.map(p => p.start_date).filter(Boolean).map(d => new Date(d));
+    const ends = u.python_projects.map(p => p.end_date).filter(Boolean).map(d => new Date(d));
+    if (starts.length && ends.length) {
+      const days = (new Date(Math.max(...ends)) - new Date(Math.min(...starts))) / MS_PER_DAY;
+      if (days > 0) allDoneDays.push(days);
+    }
+  });
+  const avgAllDoneDays = allDoneDays.length ? mean(allDoneDays) : 0;
+
   const kpis = [
     { label: 'Total Hours', value: formatNumber(totalHours), icon: '⏱️', color: COLORS.primary, trend: hoursTrend },
     { label: 'Active Users', value: activeUsers, icon: '👥', color: COLORS.cyan },
     { label: 'Avg Score', value: avgScore.toFixed(1), icon: '📊', color: COLORS.purple },
-    { label: 'Completed All Modules', value: completionRate.toFixed(0) + '%', icon: '✅', color: COLORS.green },
-    { label: 'Validation Rate', value: validationRate.toFixed(0) + '%', icon: '🏆', color: COLORS.orange },
+    { label: 'Completed All Modules', value: completionRate.toFixed(0) + '% (' + usersFinishedAll + ')', icon: '✅', color: COLORS.green },
+    { label: 'Avg Time (All Users)', value: avgCompletionDays > 0 ? avgCompletionDays.toFixed(0) + 'd' : '-', icon: '📅', color: COLORS.orange },
+    { label: 'Avg Time to Complete All ' + totalModuleCount + ' Modules', value: avgAllDoneDays > 0 ? avgAllDoneDays.toFixed(0) + 'd' : '-', icon: '🎯', color: COLORS.green },
     { label: 'Avg Hours/User', value: avgHoursPerUser.toFixed(1), icon: '📈', color: COLORS.yellow },
+    { label: 'Validation Rate', value: validationRate.toFixed(0) + '%', icon: '🏆', color: COLORS.orange },
     { label: 'Total Projects', value: allProjects.length, icon: '📦', color: COLORS.red },
-    { label: 'Projects/Hour', value: (activeUsers > 0 && totalHours > 0 ? allProjects.length / totalHours : 0).toFixed(2), icon: '⚡', color: COLORS.cyan },
-    { label: 'Avg Completion Time', value: avgCompletionDays > 0 ? avgCompletionDays.toFixed(0) + 'd' : '-', icon: '📅', color: COLORS.purple }
   ];
 
   el.innerHTML = '<div class="kpi-grid">' + kpis.map(kpi => `
@@ -265,29 +278,32 @@ registerChart('racebar', function() {
     return COLORS.palette[(userColorIdx[login] || 0) % COLORS.palette.length];
   }
 
-  // Compute max value across all frames
-  let maxVal = 1;
-  frames.forEach(f => f.snapshot.forEach(s => { if (s.value > maxVal) maxVal = s.value; }));
+  // Initial max from first frame
+  const firstMax = Math.max(...frames[0].snapshot.map(s => s.value), 1);
 
-  // Animation frames
-  const plotlyFrames = frames.map(f => ({
-    name: f.date,
-    data: [{
-      type: 'bar',
-      orientation: 'h',
-      y: f.snapshot.map(s => s.login).reverse(),
-      x: f.snapshot.map(s => s.value).reverse(),
-      marker: {
-        color: f.snapshot.map(s => getUserColor(s.login)).reverse()
-      },
-      text: f.snapshot.map(s => `${s.value.toFixed(1)}`).reverse(),
-      textposition: 'outside',
-      textfont: { size: 10, color: '#8e8e8e' }
-    }],
-    layout: {
-      title: { text: f.date, font: { color: '#8e8e8e', size: 14 }, x: 0.95, xanchor: 'right' }
-    }
-  }));
+  // Animation frames with per-frame autoscale
+  const plotlyFrames = frames.map(f => {
+    const frameMax = Math.max(...f.snapshot.map(s => s.value), 1);
+    return {
+      name: f.date,
+      data: [{
+        type: 'bar',
+        orientation: 'h',
+        y: f.snapshot.map(s => s.login).reverse(),
+        x: f.snapshot.map(s => s.value).reverse(),
+        marker: {
+          color: f.snapshot.map(s => getUserColor(s.login)).reverse()
+        },
+        text: f.snapshot.map(s => `${s.value.toFixed(1)}`).reverse(),
+        textposition: 'outside',
+        textfont: { size: 10, color: '#8e8e8e' }
+      }],
+      layout: {
+        title: { text: f.date, font: { color: '#8e8e8e', size: 14 }, x: 0.95, xanchor: 'right' },
+        xaxis: { range: [0, frameMax * 1.15] }
+      }
+    };
+  });
 
   // Initial state
   const first = frames[0];
@@ -307,7 +323,7 @@ registerChart('racebar', function() {
   const layout = {
     ...PLOTLY_LAYOUT_DEFAULTS,
     margin: { t: 40, r: 60, b: 40, l: 120 },
-    xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, title: metric === 'modules' ? 'Modules Completed' : 'Cumulative Hours', range: [0, maxVal * 1.15] },
+    xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, title: metric === 'modules' ? 'Modules Completed' : 'Cumulative Hours', range: [0, firstMax * 1.15] },
     yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis },
     title: { text: first.date, font: { color: '#8e8e8e', size: 14 }, x: 0.95, xanchor: 'right' },
     updatemenus: [{

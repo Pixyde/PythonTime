@@ -1,7 +1,6 @@
 /* ============================================================
-   Charts: Leaderboard Visualizations (16-17)
+   Charts: Leaderboard Visualizations (16)
    16. Ranking Table with Sparklines
-   17. Bump Chart (Rank Over Time)
    ============================================================ */
 
 // ---- 16. RANKING TABLE WITH SPARKLINES ----
@@ -120,90 +119,4 @@ registerChart('ranking', function() {
   }
 
   el.innerHTML = html;
-});
-
-// ---- 17. BUMP CHART (RANK OVER TIME) ----
-registerChart('bump', function() {
-  const el = document.getElementById('chart-17');
-  if (!el) return;
-  if (!filteredData.length) { el.innerHTML = '<div class="chart-empty">No data</div>'; return; }
-
-  const topN = parseInt(document.getElementById('bump-top')?.value) || 10;
-  const highlightUser = document.getElementById('bump-highlight')?.value || '';
-
-  // Build cumulative hours over time for each user
-  const allDates = new Set();
-  filteredData.forEach(u => u.python_projects.forEach(p => {
-    if (p.end_date) allDates.add(dateStr(p.end_date));
-  }));
-  const dates = [...allDates].sort();
-  if (dates.length < 2) { el.innerHTML = '<div class="chart-empty">Insufficient data</div>'; return; }
-
-  // Get top N users by total hours
-  const topUsers = [...filteredData].sort((a, b) => b.total_python_hours - a.total_python_hours).slice(0, topN);
-  const userLogins = topUsers.map(u => u.login);
-
-  // Calculate cumulative hours at each date
-  const cumHours = {};
-  userLogins.forEach(login => {
-    cumHours[login] = {};
-    let running = 0;
-    const user = topUsers.find(u => u.login === login);
-    const projects = [...user.python_projects].filter(p => p.end_date).sort((a, b) => new Date(a.end_date) - new Date(b.end_date));
-    let projIdx = 0;
-    dates.forEach(date => {
-      while (projIdx < projects.length && dateStr(projects[projIdx].end_date) <= date) {
-        running += projects[projIdx].time_spent_hours;
-        projIdx++;
-      }
-      cumHours[login][date] = running;
-    });
-  });
-
-  // Calculate ranks at each date
-  const rankings = {};
-  dates.forEach(date => {
-    const sorted = userLogins.map(login => ({ login, hours: cumHours[login][date] || 0 }))
-      .sort((a, b) => b.hours - a.hours);
-    sorted.forEach((u, i) => {
-      if (!rankings[u.login]) rankings[u.login] = [];
-      rankings[u.login].push(i + 1);
-    });
-  });
-
-  // Create traces
-  const traces = userLogins.map((login, i) => {
-    const isHighlighted = highlightUser === login;
-    return {
-      type: 'scatter',
-      mode: 'lines+markers',
-      name: login,
-      x: dates,
-      y: rankings[login],
-      line: {
-        color: COLORS.palette[i % COLORS.palette.length],
-        width: isHighlighted ? 4 : 2
-      },
-      marker: {
-        size: isHighlighted ? 8 : 4,
-        color: COLORS.palette[i % COLORS.palette.length]
-      },
-      opacity: highlightUser && !isHighlighted ? 0.3 : 1
-    };
-  });
-
-  const layout = {
-    ...PLOTLY_LAYOUT_DEFAULTS,
-    xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, title: 'Date' },
-    yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, title: 'Rank', autorange: 'reversed', dtick: 1, range: [0.5, topN + 0.5] },
-    legend: { font: { size: 9 } },
-    hovermode: 'x unified'
-  };
-  Plotly.react(el, traces, layout, PLOTLY_CONFIG);
-
-  // Populate highlight
-  const sel = document.getElementById('bump-highlight');
-  if (sel && sel.options.length <= 1) {
-    sel.innerHTML = '<option value="">None</option>' + userLogins.map(u => `<option value="${u}">${u}</option>`).join('');
-  }
 });

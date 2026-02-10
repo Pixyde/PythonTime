@@ -1,247 +1,88 @@
 /* ============================================================
-   Charts: Statistical Visualizations (13-15)
-   13. Histogram - Module Completion Time Distribution
-   14. Cumulative Distribution (CDF) of Completion Time
-   15. Correlation Matrix
+   Charts: Statistical Visualizations — Funnel only
    ============================================================ */
 
-// ---- 13. HISTOGRAM - MODULE COMPLETION TIME DISTRIBUTION ----
-registerChart('histogram', function() {
-  const el = document.getElementById('chart-13');
+// ---- 30. MODULE PROGRESS DISTRIBUTION ----
+registerChart('moduleprogress', function() {
+  const el = document.getElementById('chart-30');
   if (!el) return;
   if (!filteredData.length) { el.innerHTML = '<div class="chart-empty">No data</div>'; return; }
 
-  const binSize = parseFloat(document.getElementById('histogram-bins')?.value) || 5;
-  const splitByModule = document.getElementById('histogram-split')?.checked || false;
-  const showMean = document.getElementById('histogram-mean')?.checked !== false;
-  const showMedian = document.getElementById('histogram-median')?.checked || false;
-  const logScale = document.getElementById('histogram-log')?.checked || false;
-  const showNormal = document.getElementById('histogram-normal')?.checked || false;
+  const viewMode = document.getElementById('modprogress-view')?.value || 'stage';
+  const totalUsers = filteredData.length;
+  const totalModules = NEW_COMMON_CORE_SLUGS.length;
 
-  // Compute completion time (days) for each finished project
-  const allProjects = flattenProjects(filteredData).filter(p => p.status === 'finished');
-  const allDays = allProjects.map(p => getCompletionDays(p)).filter(d => d !== null);
+  if (viewMode === 'completed') {
+    // Show % of users who completed each module
+    const moduleCounts = {};
+    NEW_COMMON_CORE_SLUGS.forEach(m => { moduleCounts[m] = 0; });
 
-  if (!allDays.length) { el.innerHTML = '<div class="chart-empty">No completed modules with date data</div>'; return; }
-
-  let traces;
-  if (splitByModule) {
-    const moduleDays = {};
-    allProjects.forEach(p => {
-      const days = getCompletionDays(p);
-      if (days === null) return;
-      if (!moduleDays[p.project_name]) moduleDays[p.project_name] = [];
-      moduleDays[p.project_name].push(days);
-    });
-    traces = Object.entries(moduleDays).map(([mod, days], i) => ({
-      type: 'histogram',
-      x: days,
-      name: mod,
-      opacity: 0.7,
-      xbins: { size: binSize },
-      marker: { color: COLORS.palette[i % COLORS.palette.length] }
-    }));
-  } else {
-    traces = [{
-      type: 'histogram',
-      x: allDays,
-      xbins: { size: binSize },
-      marker: { color: COLORS.primary + 'cc' },
-      name: 'Completion Days'
-    }];
-  }
-
-  const shapes = [];
-  if (showMean && allDays.length) {
-    const m = mean(allDays);
-    shapes.push({ type: 'line', x0: m, x1: m, y0: 0, y1: 1, yref: 'paper', line: { color: COLORS.red, width: 2, dash: 'dash' } });
-  }
-  if (showMedian && allDays.length) {
-    const med = percentile(allDays, 50);
-    shapes.push({ type: 'line', x0: med, x1: med, y0: 0, y1: 1, yref: 'paper', line: { color: COLORS.green, width: 2, dash: 'dot' } });
-  }
-
-  // Normal distribution overlay
-  if (showNormal && allDays.length > 2) {
-    const m = mean(allDays);
-    const std = Math.sqrt(allDays.reduce((s, x) => s + (x - m) ** 2, 0) / allDays.length);
-    if (std > 0) {
-      const xRange = [];
-      const yRange = [];
-      const minX = Math.max(0, m - 3 * std);
-      const maxX = m + 3 * std;
-      for (let x = minX; x <= maxX; x += (maxX - minX) / 100) {
-        xRange.push(x);
-        yRange.push((allDays.length * binSize) / (std * Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * ((x - m) / std) ** 2));
-      }
-      traces.push({
-        type: 'scatter', mode: 'lines', name: 'Normal Dist.',
-        x: xRange, y: yRange,
-        line: { color: COLORS.yellow, width: 2 }
+    filteredData.forEach(u => {
+      const finished = new Set();
+      u.python_projects.forEach(p => {
+        if (p.status === 'finished') {
+          const slug = (p.project_slug || '').toLowerCase();
+          NEW_COMMON_CORE_SLUGS.forEach(m => { if (slug.includes(m)) finished.add(m); });
+        }
       });
-    }
-  }
-
-  const layout = {
-    ...PLOTLY_LAYOUT_DEFAULTS,
-    barmode: splitByModule ? 'overlay' : undefined,
-    xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, title: 'Days to Complete' },
-    yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, title: 'Count', type: logScale ? 'log' : 'linear' },
-    shapes,
-    legend: { font: { size: 9 }, orientation: 'h', y: -0.15 },
-    showlegend: splitByModule
-  };
-  Plotly.react(el, traces, layout, PLOTLY_CONFIG);
-});
-
-// ---- 14. CUMULATIVE DISTRIBUTION (CDF) OF COMPLETION TIME ----
-registerChart('cdf', function() {
-  const el = document.getElementById('chart-14');
-  if (!el) return;
-  if (!filteredData.length) { el.innerHTML = '<div class="chart-empty">No data</div>'; return; }
-
-  const perModule = document.getElementById('cdf-module')?.checked || false;
-  const p50 = document.getElementById('cdf-p50')?.checked !== false;
-  const p75 = document.getElementById('cdf-p75')?.checked || false;
-  const p90 = document.getElementById('cdf-p90')?.checked || false;
-
-  function buildCDF(values) {
-    const sorted = [...values].sort((a, b) => a - b);
-    const x = sorted;
-    const y = sorted.map((_, i) => (i + 1) / sorted.length * 100);
-    return { x, y };
-  }
-
-  // Use completion time (days) for finished projects
-  const allProjects = flattenProjects(filteredData).filter(p => p.status === 'finished');
-
-  let traces = [];
-  const shapes = [];
-
-  if (perModule) {
-    const moduleDays = {};
-    allProjects.forEach(p => {
-      const days = getCompletionDays(p);
-      if (days === null) return;
-      if (!moduleDays[p.project_name]) moduleDays[p.project_name] = [];
-      moduleDays[p.project_name].push(days);
-    });
-    traces = Object.entries(moduleDays).map(([mod, days], i) => {
-      const cdf = buildCDF(days);
-      return {
-        type: 'scatter', mode: 'lines', name: mod,
-        x: cdf.x, y: cdf.y,
-        line: { color: COLORS.palette[i % COLORS.palette.length], width: 2 }
-      };
-    });
-  } else {
-    const allDays = allProjects.map(p => getCompletionDays(p)).filter(d => d !== null);
-    if (!allDays.length) { el.innerHTML = '<div class="chart-empty">No completed modules with date data</div>'; return; }
-    const cdf = buildCDF(allDays);
-    traces.push({
-      type: 'scatter', mode: 'lines', name: 'All Modules',
-      x: cdf.x, y: cdf.y,
-      line: { color: COLORS.primary, width: 2 },
-      fill: 'tozeroy',
-      fillcolor: COLORS.primary + '20'
+      finished.forEach(m => { moduleCounts[m]++; });
     });
 
-    // Percentile lines
-    const pctLines = [];
-    if (p50) pctLines.push({ p: 50, color: COLORS.green });
-    if (p75) pctLines.push({ p: 75, color: COLORS.orange });
-    if (p90) pctLines.push({ p: 90, color: COLORS.red });
-    pctLines.forEach(({ p: pct, color }) => {
-      const val = percentile(allDays, pct);
-      shapes.push({ type: 'line', x0: val, x1: val, y0: 0, y1: pct, line: { color, width: 1, dash: 'dot' } });
-      shapes.push({ type: 'line', x0: 0, x1: val, y0: pct, y1: pct, line: { color, width: 1, dash: 'dot' } });
-      traces.push({
-        type: 'scatter', mode: 'markers+text', name: `P${pct}`,
-        x: [val], y: [pct],
-        marker: { color, size: 8 },
-        text: [`P${pct}: ${val.toFixed(1)}d`],
-        textposition: 'top right',
-        textfont: { color, size: 10 }
-      });
-    });
-  }
+    const slugs = NEW_COMMON_CORE_SLUGS.slice();
+    const pcts = slugs.map(m => (moduleCounts[m] / totalUsers) * 100);
 
-  const layout = {
-    ...PLOTLY_LAYOUT_DEFAULTS,
-    xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, title: 'Days to Complete' },
-    yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, title: 'Cumulative %', range: [0, 105] },
-    shapes,
-    legend: { font: { size: 9 } },
-    showlegend: true
-  };
-  Plotly.react(el, traces, layout, PLOTLY_CONFIG);
-});
-
-// ---- 15. CORRELATION MATRIX ----
-registerChart('correlation', function() {
-  const el = document.getElementById('chart-15');
-  if (!el) return;
-  if (!filteredData.length) { el.innerHTML = '<div class="chart-empty">No data</div>'; return; }
-
-  const showValues = document.getElementById('corr-values')?.checked !== false;
-
-  // Build metrics per user — focused on time to complete
-  const metrics = {};
-  const metricNames = ['Avg Completion Days', 'Max Completion Days', 'Total Hours', 'Avg Mark', 'Num Projects', 'Avg Hours/Project'];
-
-  filteredData.forEach(u => {
-    const scored = u.python_projects.filter(p => p.final_mark !== null && p.final_mark !== undefined);
-    const finished = u.python_projects.filter(p => p.status === 'finished');
-    const completionDays = finished.map(p => getCompletionDays(p)).filter(d => d !== null);
-    const row = {
-      'Avg Completion Days': completionDays.length ? mean(completionDays) : 0,
-      'Max Completion Days': completionDays.length ? Math.max(...completionDays) : 0,
-      'Total Hours': u.total_python_hours,
-      'Avg Mark': scored.length ? mean(scored.map(p => p.final_mark)) : 0,
-      'Num Projects': u.python_projects.length,
-      'Avg Hours/Project': u.python_projects.length ? u.total_python_hours / u.python_projects.length : 0
+    const trace = {
+      type: 'bar',
+      x: slugs,
+      y: pcts,
+      marker: { color: pcts.map(p => p >= 50 ? COLORS.green : p >= 25 ? COLORS.orange : COLORS.red) },
+      text: pcts.map((p, i) => `${p.toFixed(0)}% (${moduleCounts[slugs[i]]}/${totalUsers})`),
+      textposition: 'outside',
+      textfont: { size: 9, color: '#8e8e8e' }
     };
-    metricNames.forEach(m => {
-      if (!metrics[m]) metrics[m] = [];
-      metrics[m].push(row[m]);
+
+    const layout = {
+      ...PLOTLY_LAYOUT_DEFAULTS,
+      xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, title: 'Module', tickangle: -30 },
+      yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, title: '% of Users Who Completed', range: [0, Math.max(...pcts, 10) * 1.15] }
+    };
+    Plotly.react(el, [trace], layout, PLOTLY_CONFIG);
+
+  } else {
+    // Show % of users at each module stage (how many modules finished)
+    const stageCounts = new Array(totalModules + 1).fill(0);
+
+    filteredData.forEach(u => {
+      const finished = new Set();
+      u.python_projects.forEach(p => {
+        if (p.status === 'finished') {
+          const slug = (p.project_slug || '').toLowerCase();
+          NEW_COMMON_CORE_SLUGS.forEach(m => { if (slug.includes(m)) finished.add(m); });
+        }
+      });
+      stageCounts[finished.size]++;
     });
-  });
 
-  // Calculate correlation matrix
-  function correlate(a, b) {
-    const n = a.length;
-    if (n < 2) return 0;
-    const ma = mean(a), mb = mean(b);
-    const num = a.reduce((s, ai, i) => s + (ai - ma) * (b[i] - mb), 0);
-    const da = Math.sqrt(a.reduce((s, ai) => s + (ai - ma) ** 2, 0));
-    const db = Math.sqrt(b.reduce((s, bi) => s + (bi - mb) ** 2, 0));
-    return da && db ? num / (da * db) : 0;
+    const labels = stageCounts.map((_, i) => i === totalModules ? `${i} (All Done)` : `${i}`);
+    const pcts = stageCounts.map(c => (c / totalUsers) * 100);
+
+    const trace = {
+      type: 'bar',
+      x: labels,
+      y: pcts,
+      marker: {
+        color: labels.map((_, i) => i === totalModules ? COLORS.green : i >= totalModules * 0.75 ? COLORS.cyan : i >= totalModules * 0.5 ? COLORS.orange : COLORS.red)
+      },
+      text: pcts.map((p, i) => `${p.toFixed(1)}% (${stageCounts[i]})`),
+      textposition: 'outside',
+      textfont: { size: 9, color: '#8e8e8e' }
+    };
+
+    const layout = {
+      ...PLOTLY_LAYOUT_DEFAULTS,
+      xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, title: 'Modules Finished' },
+      yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, title: '% of Users', range: [0, Math.max(...pcts, 10) * 1.15] }
+    };
+    Plotly.react(el, [trace], layout, PLOTLY_CONFIG);
   }
-
-  const matrix = metricNames.map(a => metricNames.map(b => correlate(metrics[a], metrics[b])));
-  const textMatrix = matrix.map(row => row.map(v => v.toFixed(2)));
-
-  const trace = {
-    type: 'heatmap',
-    x: metricNames,
-    y: metricNames,
-    z: matrix,
-    zmin: -1,
-    zmax: 1,
-    colorscale: [[0, '#f2495c'], [0.5, '#1a1d23'], [1, '#73bf69']],
-    text: showValues ? textMatrix : undefined,
-    texttemplate: showValues ? '%{text}' : undefined,
-    textfont: { size: 10, color: '#e0e0e0' },
-    hovertemplate: '%{x} vs %{y}: %{z:.2f}<extra></extra>',
-    showscale: true,
-    colorbar: { title: 'Correlation', titleside: 'right', tickfont: { color: '#8e8e8e' } }
-  };
-
-  const layout = {
-    ...PLOTLY_LAYOUT_DEFAULTS,
-    margin: { t: 10, r: 80, b: 100, l: 120 },
-    xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, tickangle: -45 },
-    yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, autorange: 'reversed' }
-  };
-  Plotly.react(el, [trace], layout, PLOTLY_CONFIG);
 });
