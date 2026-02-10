@@ -219,7 +219,8 @@ function populateGlobalFilters() {
   // User multi-select
   const userDropdown = document.getElementById('filter-users-dropdown');
   if (userDropdown) {
-    userDropdown.innerHTML = users.map(u =>
+    userDropdown.innerHTML = '<input type="text" class="dropdown-search" placeholder="Search users..." oninput="filterDropdownItems(this)" onclick="event.stopPropagation()">' +
+      users.map(u =>
       `<label><input type="checkbox" value="${u}" onchange="onGlobalFilterChange()"> ${u}</label>`
     ).join('');
   }
@@ -227,7 +228,8 @@ function populateGlobalFilters() {
   // Module multi-select
   const moduleDropdown = document.getElementById('filter-modules-dropdown');
   if (moduleDropdown) {
-    moduleDropdown.innerHTML = modules.map(m =>
+    moduleDropdown.innerHTML = '<input type="text" class="dropdown-search" placeholder="Search modules..." oninput="filterDropdownItems(this)" onclick="event.stopPropagation()">' +
+      modules.map(m =>
       `<label><input type="checkbox" value="${m}" onchange="onGlobalFilterChange()"> ${m}</label>`
     ).join('');
   }
@@ -235,7 +237,8 @@ function populateGlobalFilters() {
   // Campus multi-select
   const campusDropdown = document.getElementById('filter-campus-dropdown');
   if (campusDropdown) {
-    campusDropdown.innerHTML = campuses.map(c =>
+    campusDropdown.innerHTML = '<input type="text" class="dropdown-search" placeholder="Search campuses..." oninput="filterDropdownItems(this)" onclick="event.stopPropagation()">' +
+      campuses.map(c =>
       `<label><input type="checkbox" value="${c}" onchange="onGlobalFilterChange()"> ${c}</label>`
     ).join('');
   }
@@ -314,12 +317,39 @@ function toggleMultiSelect(id) {
     if (d.id !== id) d.classList.remove('open');
   });
   dd.classList.toggle('open');
+  // Focus the search input when opening
+  if (dd.classList.contains('open')) {
+    const searchInput = dd.querySelector('.dropdown-search');
+    if (searchInput) searchInput.focus();
+  }
 }
 document.addEventListener('click', function(e) {
   if (!e.target.closest('.multi-select')) {
     document.querySelectorAll('.multi-select-dropdown').forEach(d => d.classList.remove('open'));
   }
 });
+
+// ---- DROPDOWN SEARCH ----
+function filterDropdownItems(inputEl) {
+  const query = inputEl.value.toLowerCase();
+  const container = inputEl.parentElement;
+  container.querySelectorAll('label').forEach(label => {
+    const text = label.textContent.toLowerCase();
+    label.style.display = text.includes(query) ? '' : 'none';
+  });
+}
+
+function filterSelectOptions(inputEl, selectId) {
+  const query = inputEl.value.toLowerCase();
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  [...sel.options].forEach(opt => {
+    const match = opt.textContent.toLowerCase().includes(query);
+    opt.style.display = match ? '' : 'none';
+    // For hidden options in <select>, we need to also toggle the hidden attribute
+    opt.hidden = !match;
+  });
+}
 
 // ---- NAVIGATION ----
 let activeSection = 'all';
