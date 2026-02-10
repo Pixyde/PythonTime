@@ -128,17 +128,25 @@ registerChart('modulestatbar', function() {
   const meds = modules.map(m => median(moduleMap[m]));
   const stds = modules.map(m => stddev(moduleMap[m]));
 
+  // Total across all modules
+  const allHours = Object.values(moduleMap).flat();
+  const totalAvg = mean(allHours);
+  const totalMed = median(allHours);
+  const totalStd = stddev(allHours);
+
+  const xLabels = [...modules, '⊕ Total'];
+
   const traces = [];
 
   // Average bars
   traces.push({
     type: 'bar',
     name: 'Average',
-    x: modules,
-    y: avgs,
-    marker: { color: COLORS.primary },
-    error_y: showStdDev ? { type: 'data', array: stds, visible: true, color: '#8e8e8e' } : undefined,
-    text: avgs.map(v => v.toFixed(1) + 'h'),
+    x: xLabels,
+    y: [...avgs, totalAvg],
+    marker: { color: [...modules.map(() => COLORS.primary), COLORS.green] },
+    error_y: showStdDev ? { type: 'data', array: [...stds, totalStd], visible: true, color: '#8e8e8e' } : undefined,
+    text: [...avgs, totalAvg].map(v => v.toFixed(1) + 'h'),
     textposition: 'outside',
     textfont: { size: 9, color: '#8e8e8e' }
   });
@@ -149,8 +157,8 @@ registerChart('modulestatbar', function() {
       type: 'scatter',
       mode: 'markers',
       name: 'Median',
-      x: modules,
-      y: meds,
+      x: xLabels,
+      y: [...meds, totalMed],
       marker: { color: COLORS.orange, size: 10, symbol: 'diamond' }
     });
   }
