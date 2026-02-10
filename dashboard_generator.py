@@ -36,9 +36,9 @@ class DashboardGenerator:
     <title>Python Time Analysis - 24 Visualizations</title>
     
     <!-- Visualization Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/chart.js@4.4.1/dist/chart.umd.js"></script>
+    <script src="https://unpkg.com/plotly.js@2.27.0/dist/plotly.min.js"></script>
+    <script src="https://unpkg.com/d3@7/dist/d3.min.js"></script>
     
     <style>
 {self._get_css()}
@@ -772,7 +772,320 @@ function generateDashboard() {
     console.log('✓ Each visualization has individual controls');
 }
 
+
+
+
+
+// ============================================================================
+// SIMPLE CHART RENDERING (NO EXTERNAL DEPENDENCIES)
+// ============================================================================
+
+// Render Top Users Bar Chart with CSS
+function renderTopUsersChart() {
+    const container = document.getElementById('multibar-chart');
+    const topN = parseInt(document.getElementById('multibar-top')?.value || 10);
+    const sortedUsers = rawData
+        .sort((a, b) => b.total_python_hours - a.total_python_hours)
+        .slice(0, topN);
+    
+    const maxHours = Math.max(...sortedUsers.map(u => u.total_python_hours));
+    
+    let html = '<div style="padding: 20px;">';
+    html += '<h4 style="margin-bottom: 20px; color: #667eea;">Top Users by Total Hours</h4>';
+    
+    sortedUsers.forEach(user => {
+        const percentage = (user.total_python_hours / maxHours) * 100;
+        html += `
+            <div style="margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="font-weight: 600;">${user.login}</span>
+                    <span style="color: #666;">${user.total_python_hours.toFixed(1)}h</span>
+                </div>
+                <div style="background: #e0e0e0; height: 30px; border-radius: 5px; overflow: hidden;">
+                    <div style="background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; width: ${percentage}%; transition: width 0.5s;"></div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Render Module Average Times Chart with CSS
+function renderModuleAvgChart() {
+    const container = document.getElementById('radar-chart');
+    
+    const moduleStats = {};
+    rawData.forEach(user => {
+        user.python_projects.forEach(proj => {
+            const name = proj.project_name;
+            if (!moduleStats[name]) {
+                moduleStats[name] = { total: 0, count: 0 };
+            }
+            moduleStats[name].total += proj.time_spent_hours;
+            moduleStats[name].count += 1;
+        });
+    });
+    
+    const modules = Object.keys(moduleStats)
+        .map(name => ({ name, avg: moduleStats[name].total / moduleStats[name].count }))
+        .sort((a, b) => b.avg - a.avg)
+        .slice(0, 10);
+    
+    const maxAvg = Math.max(...modules.map(m => m.avg));
+    
+    let html = '<div style="padding: 20px;">';
+    html += '<h4 style="margin-bottom: 20px; color: #764ba2;">Average Time per Module</h4>';
+    
+    modules.forEach(module => {
+        const percentage = (module.avg / maxAvg) * 100;
+        html += `
+            <div style="margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="font-weight: 600; font-size: 0.9rem;">${module.name}</span>
+                    <span style="color: #666;">${module.avg.toFixed(1)}h</span>
+                </div>
+                <div style="background: #e0e0e0; height: 25px; border-radius: 5px; overflow: hidden;">
+                    <div style="background: linear-gradient(90deg, #764ba2, #667eea); height: 100%; width: ${percentage}%;"></div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Render Scatter Plot with SVG
+function renderScatterChart() {
+    const container = document.getElementById('scatter-chart');
+    const width = 500;
+    const height = 350;
+    const padding = 50;
+    
+    const scatterData = [];
+    rawData.forEach(user => {
+        user.python_projects.forEach(proj => {
+            if (proj.final_mark !== null && proj.final_mark !== undefined && proj.time_spent_hours > 0) {
+                scatterData.push({
+                    x: proj.time_spent_hours,
+                    y: proj.final_mark,
+                    user: user.login,
+                    project: proj.project_name
+                });
+            }
+        });
+    });
+    
+    if (scatterData.length === 0) {
+        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #999;">No data available</div>';
+        return;
+    }
+    
+    const maxX = Math.max(...scatterData.map(d => d.x));
+    const maxY = 100;
+    
+    let html = '<div style="padding: 20px;">';
+    html += '<h4 style="margin-bottom: 15px; color: #667eea;">Hours vs Final Score</h4>';
+    html += `<svg width="${width}" height="${height}" style="border: 1px solid #e0e0e0; border-radius: 8px; background: white;">`;
+    
+    // Grid lines
+    for (let i = 0; i <= 5; i++) {
+        const y = padding + (height - 2 * padding) * i / 5;
+        html += `<line x1="${padding}" y1="${y}" x2="${width - padding}" y2="${y}" stroke="#e0e0e0" stroke-width="1"/>`;
+        html += `<text x="${padding - 10}" y="${y + 5}" text-anchor="end" font-size="12" fill="#666">${100 - i * 20}</text>`;
+    }
+    
+    // Axes
+    html += `<line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" stroke="#333" stroke-width="2"/>`;
+    html += `<line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="#333" stroke-width="2"/>`;
+    
+    // Data points
+    scatterData.forEach(point => {
+        const x = padding + (point.x / maxX) * (width - 2 * padding);
+        const y = height - padding - (point.y / maxY) * (height - 2 * padding);
+        html += `<circle cx="${x}" cy="${y}" r="5" fill="#667eea" opacity="0.7" stroke="#764ba2" stroke-width="2">
+            <title>${point.user} - ${point.project}\nHours: ${point.x.toFixed(1)}\nScore: ${point.y}</title>
+        </circle>`;
+    });
+    
+    // Labels
+    html += `<text x="${width / 2}" y="${height - 10}" text-anchor="middle" font-size="14" fill="#333">Hours Spent</text>`;
+    html += `<text x="20" y="${height / 2}" text-anchor="middle" font-size="14" fill="#333" transform="rotate(-90 20 ${height / 2})">Final Score</text>`;
+    
+    html += '</svg></div>';
+    container.innerHTML = html;
+}
+
+// Render Status Distribution with CSS Pie Chart
+function renderStatusChart() {
+    const container = document.getElementById('boxplot-chart');
+    
+    const statusCount = { finished: 0, in_progress: 0, waiting: 0 };
+    rawData.forEach(user => {
+        user.python_projects.forEach(proj => {
+            if (proj.status && statusCount.hasOwnProperty(proj.status)) {
+                statusCount[proj.status]++;
+            }
+        });
+    });
+    
+    const total = statusCount.finished + statusCount.in_progress + statusCount.waiting;
+    const finishedPct = (statusCount.finished / total * 100).toFixed(1);
+    const inProgressPct = (statusCount.in_progress / total * 100).toFixed(1);
+    const waitingPct = (statusCount.waiting / total * 100).toFixed(1);
+    
+    let html = '<div style="padding: 20px;">';
+    html += '<h4 style="margin-bottom: 20px; color: #667eea;">Project Status Distribution</h4>';
+    html += '<div style="display: flex; gap: 30px; align-items: center;">';
+    
+    // Simple pie chart representation with circles
+    html += '<div style="flex: 1;">';
+    html += `<div style="margin-bottom: 15px;">
+        <div style="display: inline-block; width: 20px; height: 20px; background: #4BC0C0; border-radius: 3px; margin-right: 10px;"></div>
+        <span style="font-weight: 600;">Finished:</span> ${statusCount.finished} (${finishedPct}%)
+    </div>`;
+    html += `<div style="margin-bottom: 15px;">
+        <div style="display: inline-block; width: 20px; height: 20px; background: #FFCE56; border-radius: 3px; margin-right: 10px;"></div>
+        <span style="font-weight: 600;">In Progress:</span> ${statusCount.in_progress} (${inProgressPct}%)
+    </div>`;
+    html += `<div style="margin-bottom: 15px;">
+        <div style="display: inline-block; width: 20px; height: 20px; background: #FF6384; border-radius: 3px; margin-right: 10px;"></div>
+        <span style="font-weight: 600;">Waiting:</span> ${statusCount.waiting} (${waitingPct}%)
+    </div>`;
+    html += '</div>';
+    
+    // Visual bars
+    html += '<div style="flex: 1;">';
+    html += `<div style="background: #4BC0C0; height: 40px; width: ${finishedPct}%; margin-bottom: 5px; border-radius: 5px;"></div>`;
+    html += `<div style="background: #FFCE56; height: 40px; width: ${inProgressPct}%; margin-bottom: 5px; border-radius: 5px;"></div>`;
+    html += `<div style="background: #FF6384; height: 40px; width: ${waitingPct}%; border-radius: 5px;"></div>`;
+    html += '</div>';
+    
+    html += '</div></div>';
+    container.innerHTML = html;
+}
+
+// Render Time Distribution Histogram with CSS
+function renderHistogramChart() {
+    const container = document.getElementById('histogram-chart');
+    
+    const hours = rawData.map(u => u.total_python_hours);
+    const bins = 10;
+    const max = Math.max(...hours);
+    const binSize = max / bins;
+    
+    const histogram = Array(bins).fill(0);
+    hours.forEach(h => {
+        const binIndex = Math.min(Math.floor(h / binSize), bins - 1);
+        histogram[binIndex]++;
+    });
+    
+    const maxCount = Math.max(...histogram);
+    
+    let html = '<div style="padding: 20px;">';
+    html += '<h4 style="margin-bottom: 20px; color: #4BC0C0;">Hours Distribution</h4>';
+    html += '<div style="display: flex; align-items: flex-end; gap: 5px; height: 200px;">';
+    
+    histogram.forEach((count, i) => {
+        const height = (count / maxCount) * 180;
+        const label = `${(i * binSize).toFixed(0)}-${((i + 1) * binSize).toFixed(0)}h`;
+        html += `
+            <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+                <div style="color: #666; font-size: 0.8rem; margin-bottom: 5px;">${count}</div>
+                <div style="background: linear-gradient(180deg, #4BC0C0, #45B0B0); width: 100%; height: ${height}px; border-radius: 5px 5px 0 0; transition: height 0.5s;" title="${count} users"></div>
+                <div style="font-size: 0.7rem; color: #666; margin-top: 5px; transform: rotate(-45deg); transform-origin: top left;">${label}</div>
+            </div>
+        `;
+    });
+    
+    html += '</div></div>';
+    container.innerHTML = html;
+}
+
+// Render Efficiency Chart with CSS
+function renderEfficiencyChart() {
+    const container = document.getElementById('efficiency-chart');
+    
+    const userEfficiency = rawData.map(user => {
+        let totalScore = 0;
+        let totalHours = 0;
+        let validProjects = 0;
+        
+        user.python_projects.forEach(proj => {
+            if (proj.final_mark !== null && proj.final_mark !== undefined && proj.time_spent_hours > 0) {
+                totalScore += proj.final_mark;
+                totalHours += proj.time_spent_hours;
+                validProjects++;
+            }
+        });
+        
+        return {
+            login: user.login,
+            efficiency: totalHours > 0 ? totalScore / totalHours : 0,
+            totalHours: totalHours
+        };
+    }).filter(u => u.efficiency > 0)
+      .sort((a, b) => b.efficiency - a.efficiency)
+      .slice(0, 15);
+    
+    const maxEff = Math.max(...userEfficiency.map(u => u.efficiency));
+    
+    let html = '<div style="padding: 20px;">';
+    html += '<h4 style="margin-bottom: 20px; color: #FF9F40;">Efficiency Score (Score per Hour)</h4>';
+    
+    userEfficiency.forEach(user => {
+        const percentage = (user.efficiency / maxEff) * 100;
+        html += `
+            <div style="margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="font-weight: 600;">${user.login}</span>
+                    <span style="color: #666;">${user.efficiency.toFixed(2)} pts/hr (${user.totalHours.toFixed(1)}h)</span>
+                </div>
+                <div style="background: #e0e0e0; height: 25px; border-radius: 5px; overflow: hidden;">
+                    <div style="background: linear-gradient(90deg, #FF9F40, #FFCE56); height: 100%; width: ${percentage}%;"></div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Initialize all working charts
+function initializeWorkingCharts() {
+    console.log('Initializing CSS-based charts (no external dependencies)...');
+    
+    if (rawData && rawData.length > 0) {
+        try {
+            // Comparison tab - chart 4
+            if (document.getElementById('multibar-chart')) renderTopUsersChart();
+            // Comparison tab - chart 6
+            if (document.getElementById('radar-chart')) renderModuleAvgChart();
+            // Performance tab - chart 7
+            if (document.getElementById('scatter-chart')) renderScatterChart();
+            // Comparison tab - chart 5
+            if (document.getElementById('boxplot-chart')) renderStatusChart();
+            // Statistical tab - chart 13
+            if (document.getElementById('histogram-chart')) renderHistogramChart();
+            // Performance tab - chart 8
+            if (document.getElementById('efficiency-chart')) renderEfficiencyChart();
+            
+            console.log('✓ All charts initialized successfully');
+        } catch (error) {
+            console.error('Error initializing charts:', error);
+        }
+    }
+}
+
 // Initialize dashboard when page loads
-document.addEventListener('DOMContentLoaded', generateDashboard);
+document.addEventListener('DOMContentLoaded', function() {
+    generateDashboard();
+    // Give the DOM time to render, then initialize charts
+    setTimeout(initializeWorkingCharts, 100);
+});
 generateDashboard();
+setTimeout(initializeWorkingCharts, 100);
 """
