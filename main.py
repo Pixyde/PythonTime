@@ -338,7 +338,8 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
         return None
     
     # Validate cached location data and refresh if bad cache detected
-    if client and locations:
+    # Note: Check 'is not None' instead of truthiness to handle empty lists []
+    if client and locations is not None:
         locations = client.validate_and_refresh_locations(
             user_id, projects, locations, begin_at, end_at
         )
