@@ -16,8 +16,9 @@ A Python application that uses the 42 API to gather and analyze time spent on Py
 - 💽 Intelligent caching system to avoid redundant API calls
 - 🎯 Filter for new common core Python modules only
 - 📉 **Detailed statistics** - Individual module times and averages
-- 📊 **Static visualizations** - Generate PNG charts and graphs
-- 🌐 **Grafana-Style Interactive Dashboard** - Professional UI with panels, filters, and real-time updates
+- 🌐 **Grafana-Style Interactive Dashboard** - Professional UI with 25 visualization panels, filters, and real-time updates
+- 🏫 **Campus Comparison** - Compare averages and metrics across campuses
+- 🔄 **Zero-logtime retry** - Automatically re-fetches location data when a user's logtime is 0 (cache invalidation)
 - ⚡ Efficient workflow with optional campus filtering
 
 ## Prerequisites
@@ -54,22 +55,9 @@ CLIENT_ID=your_actual_client_id
 CLIENT_SECRET=your_actual_client_secret
 ```
 
-### 4. Configure Campus ID (Optional)
+### 4. Run the application
 
-The application is configured for Havre campus. If you need to change the campus:
-
-1. Find your campus ID through the 42 API or by checking the intranet
-2. Edit `main.py` and update the `HAVRE_CAMPUS_ID` constant
-
-Common campus IDs:
-- Paris: 1
-- Lyon: 6
-- Havre: 14 (default in this app)
-
-You can also query the API to find campus IDs:
-```
-GET https://api.intra.42.fr/v2/campus
-```
+Campus selection is interactive — you'll be prompted to choose from all available campuses at startup.
 
 ## Usage
 
@@ -104,9 +92,8 @@ The application will:
    - Individual user breakdown with per-module times
    - Module averages across all users
    - Overall statistics
-9. **Create visualizations** (charts and graphs saved as PNG files)
-10. **Generate interactive dashboard** (HTML file)
-11. Save results to JSON file with timestamp
+9. **Generate interactive dashboard** (HTML file)
+10. Save results to JSON file with timestamp
 
 ### Efficient Project-Based Approach
 
@@ -120,69 +107,58 @@ This application uses an efficient approach:
 The application generates:
 
 1. **JSON data file**: `python_time_analysis_YYYYMMDD_HHMMSS.json` with detailed user data
-2. **Interactive Dashboard**: `python_time_analysis_YYYYMMDD_HHMMSS_dashboard.html` with comprehensive visualizations
-3. **Static PNG charts**:
-   - `module_average_times.png` - Bar chart of average time per module
-   - `top_students.png` - Bar chart of top 15 users by total hours
-   - `time_distribution.png` - Histogram of time distribution
+2. **Interactive Dashboard**: `python_time_analysis_YYYYMMDD_HHMMSS_dashboard.html` — a single self-contained HTML file with 25 Plotly.js visualizations
 
 ### Interactive Dashboard Features
 
-The dashboard is a **Grafana-inspired analytics platform** with professional UI and comprehensive features:
+The dashboard is a **Grafana-inspired analytics platform** — a single self-contained HTML file powered by Plotly.js with 25 interactive visualization panels:
 
-**🎨 Grafana-Style Design**:
-- **Dark Theme**: Professional Grafana color scheme (#0b0c0e canvas, #111217 primary, #33a2e5 accent)
-- **Panel System**: Organized sections with headers and actions
-- **Responsive Grid**: Auto-adapts to screen size
-- **Professional Typography**: Clean, readable fonts
+**🎨 Design**:
+- Dark theme matching Grafana color scheme
+- Responsive grid layout with per-section navigation
+- Professional panel system with header, controls, and chart area
 
-**🔧 Toolbar & Controls**:
-- **Time Range Picker**: Select date ranges (UI ready for "Last 30 days", custom ranges)
-- **Variable Selectors**: Module and Status dropdowns
-- **Quick Filters**: Top 10, Completed, Reset buttons
-- **Auto-Refresh**: Off / 30s / 1m / 5m options
+**🔧 Global Filters**:
+- Multi-select users and modules
+- Status and validated toggle
+- Date range picker
+- Score range and minimum hour threshold
+- Apply / Reset buttons
 
-**📊 Statistics Overview** (4 stat panels):
-- Total Users 👥 - Unique user count
-- Total Hours ⏱️ - Sum of all time spent
-- Avg Hours/User 📊 - Mean per user
-- Completion Rate ✅ - % of finished projects
+**📊 25 Visualization Panels** (each with their own sliders & controls):
 
-**📈 Interactive Charts** (4 panels with full controls):
-1. **Top Users by Hours** 👑 - Bar chart of top 15 students
-2. **Module Average Times** 📚 - Horizontal bar chart per module
-3. **Status Distribution** 📈 - Doughnut chart of project status
-4. **Time Distribution** ⏰ - Histogram of hour ranges
+| # | Chart | Section |
+|---|-------|---------|
+| 1 | Timeline Gantt Chart | Timeline |
+| 2 | Time Spent Heatmap Calendar | Timeline |
+| 3 | Progress Timeline | Timeline |
+| 4 | Multi-User Bar / Column Chart | Comparison |
+| 5 | Box Plot / Violin Plot | Comparison |
+| 6 | Radar / Spider Chart | Comparison |
+| 7 | Scatter Plot — Hours vs Score | Performance |
+| 8 | Efficiency Score Chart | Performance |
+| 9 | Completion Rate Gauge | Performance |
+| 10 | Sankey Diagram | Flow |
+| 11 | Funnel Chart | Flow |
+| 12 | Stream Graph | Flow |
+| 13 | Histogram — Hour Distribution | Statistical |
+| 14 | Cumulative Distribution (CDF) | Statistical |
+| 15 | Correlation Matrix | Statistical |
+| 16 | Ranking Table with Sparklines | Leaderboard |
+| 17 | Bump Chart (Rank Over Time) | Leaderboard |
+| 18 | Treemap — Hours by User & Module | Advanced |
+| 19 | Sunburst Chart | Advanced |
+| 20 | Parallel Coordinates | Advanced |
+| 21 | Network Graph | Advanced |
+| 22 | KPI Cards with Trends | Interactive |
+| 23 | Filterable & Sortable Data Table | Interactive |
+| 24 | Animated Race Bar Chart | Interactive |
+| 25 | Campus Comparison (bar / radar) | Campus |
 
-**Panel Features**:
-- Individual panel actions (Refresh, Export, Fullscreen)
-- Hover interactions
-- Click to fullscreen mode
-- Export charts as PNG
-
-**📋 Detailed Data Table**:
-- Student rankings sorted by hours
-- Comprehensive stats (projects, hours, averages)
-- Completion rate badges
-- Export ready (CSV export button)
-
-**🔄 Real-Time Features**:
-- Filters apply instantly
-- Auto-refresh options
-- Toast notifications for actions
-- Smooth transitions
-
-**✨ Professional UX**:
-- Grafana-style panels and cards
-- Loading states
-- Empty state messages
-- Toast notifications (Success/Error/Info)
-- Keyboard navigation ready
-- Mobile responsive
-- Sortable columns with rankings
-- Module count per user
-- Color-coded status badges
-- Export filtered data to JSON
+**🏫 Campus Comparison Tab**:
+- Compare average hours, marks, completion rate, validation rate, efficiency across campuses
+- Radar overlay for multi-metric comparison
+- Global average reference line
 
 **To view**: Simply open the `*_dashboard.html` file in any modern web browser!
 
@@ -195,6 +171,8 @@ The dashboard is a **Grafana-inspired analytics platform** with professional UI 
     "login": "student-login",
     "email": "student@example.com",
     "cursus_level": 0,
+    "campus_name": "Le Havre",
+    "campus_id": 14,
     "python_projects": [
       {
         "project_name": "Python - Django",
@@ -339,6 +317,19 @@ PythonTime/
 ├── cache_manager.py       # Cache management system
 ├── cache_util.py          # Cache management utility CLI
 ├── data_processor.py      # Data processing and analysis logic
+├── dashboard/             # Modular dashboard template parts
+│   ├── template.html      # Main HTML skeleton
+│   ├── styles.css         # Dark theme CSS
+│   ├── core.js            # Data processing, filters, utilities
+│   ├── charts_timeline.js     # Charts 1-3 (Gantt, Heatmap, Progress)
+│   ├── charts_comparison.js   # Charts 4-6 (Bar, Box/Violin, Radar)
+│   ├── charts_performance.js  # Charts 7-9 (Scatter, Efficiency, Gauge)
+│   ├── charts_flow.js         # Charts 10-12 (Sankey, Funnel, Stream)
+│   ├── charts_statistical.js  # Charts 13-15 (Histogram, CDF, Correlation)
+│   ├── charts_leaderboard.js  # Charts 16-17 (Ranking, Bump)
+│   ├── charts_advanced.js     # Charts 18-21 (Treemap, Sunburst, Parallel, Network)
+│   ├── charts_interactive.js  # Charts 22-24 (KPI, Data Table, Race Bar)
+│   └── charts_campus.js       # Chart 25 (Campus Comparison)
 ├── test_app.py            # Tests for data processing
 ├── test_cache.py          # Tests for caching system
 ├── test_project_users.py  # Tests for project users endpoint

@@ -13,27 +13,11 @@ from api_client import API42Client
 from data_processor import DataProcessor
 
 
-# Campus IDs (you may need to adjust these)
-# Common campus IDs:
-# Paris: 1
-# Lyon: 6
-# Havre: Need to be determined (you can find it via API)
-HAVRE_CAMPUS_ID = 14  # This is an example, adjust as needed
-
 # Cursus ID for 42 cursus
 MAIN_CURSUS_ID = 21
 
 # New Common Core - Filter for only new common core modules
-# The new common core uses a different cursus or has specific identifiers
-# You can filter by:
-# 1. Cursus ID (if new common core has a different cursus ID)
-# 2. Project slugs/names (specific to new common core)
-# 3. Begin date range (new common core started at a specific date)
 USE_NEW_COMMON_CORE_ONLY = True  # Set to True to filter only new common core modules
-
-# API Call Optimization Settings
-# Set to limit student processing (useful for testing)
-MAX_STUDENTS = None  # Set to a number (e.g., 50) to limit, or None for all students
 
 # Date range for location data (reduces API response size)
 # Set to None to fetch all location history
@@ -58,7 +42,7 @@ def load_config():
     return client_id, client_secret
 
 
-def select_campus(client: API42Client) -> int:
+def select_campus(client: API42Client) -> tuple:
     """
     Let user select a campus from the available list
     
@@ -66,7 +50,7 @@ def select_campus(client: API42Client) -> int:
         client: API client instance
         
     Returns:
-        Selected campus ID, or None for no filtering
+        Tuple of (campus_id, campus_name), or (None, None) for no filtering
     """
     print("\n" + "=" * 60)
     print("CAMPUS SELECTION")
@@ -76,7 +60,7 @@ def select_campus(client: API42Client) -> int:
     
     if not campuses:
         print("No campuses found. Analyzing all users globally.")
-        return None
+        return None, None
     
     # Sort campuses by name for easier navigation
     campuses.sort(key=lambda c: c.get('name', ''))
@@ -106,13 +90,13 @@ def select_campus(client: API42Client) -> int:
             
             if idx == 0:
                 print(f"\n✓ Selected: ALL USERS (No campus filtering)")
-                return None  # None means no filtering
+                return None, None
             elif 1 <= idx <= len(campuses):
                 selected_campus = campuses[idx - 1]
                 campus_id = selected_campus.get('id')
                 campus_name = selected_campus.get('name')
                 print(f"\n✓ Selected: {campus_name} (ID: {campus_id})")
-                return campus_id
+                return campus_id, campus_name
             else:
                 print(f"Please enter a number between 0 and {len(campuses)}")
         except ValueError:
@@ -313,7 +297,7 @@ def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_
     return users_projects_map
 
 
-def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]], locations_map: Dict[int, List[Dict]], new_common_core_only: bool = False) -> Dict:
+def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]], locations_map: Dict[int, List[Dict]], new_common_core_only: bool = False, campus_name: str = None, campus_id: int = None) -> Dict:
     """
     Process a user's data using pre-fetched project and location data
     
@@ -322,6 +306,8 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
         projects_map: Map of user_id -> projects list
         locations_map: Map of user_id -> locations list
         new_common_core_only: If True, filter to only new common core modules
+        campus_name: Optional campus name to attach to user record
+        campus_id: Optional campus ID to attach to user record
         
     Returns:
         Dictionary with user's Python project analysis
@@ -353,7 +339,7 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
         # cursus_level might not be directly available, set to 0 or extract from user data
         cursus_level = 0
     
-    return {
+    result = {
         'user_id': user_id,
         'login': login,
         'email': email,
@@ -361,6 +347,14 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
         'python_projects': analysis,
         'total_python_hours': sum(p['time_spent_hours'] for p in analysis)
     }
+    
+    # Attach campus info if available (used by campus comparison dashboard)
+    if campus_name:
+        result['campus_name'] = campus_name
+    if campus_id is not None:
+        result['campus_id'] = campus_id
+    
+    return result
 
 
 def calculate_module_statistics(results: List[Dict]) -> Dict:
@@ -463,129 +457,67 @@ def display_statistics(results: List[Dict], stats: Dict):
                   f"[{project['status']}] Mark: {project['final_mark']}")
 
 
-def create_visualizations(results: List[Dict], stats: Dict, output_dir: str = "."):
-    """
-    Create visualizations for the data using matplotlib
-    
-    Args:
-        results: List of student data dictionaries
-        stats: Statistics dictionary
-        output_dir: Directory to save visualizations
-    """
-    try:
-        import matplotlib.pyplot as plt
-        import matplotlib
-        matplotlib.use('Agg')  # Use non-interactive backend
-    except ImportError:
-        print("\n⚠️  Matplotlib not installed. Skipping visualizations.")
-        print("   Install with: pip install matplotlib")
-        return
-    
-    print("\n📈 Generating visualizations...")
-    
-    # 1. Module Average Time Bar Chart
-    fig, ax = plt.subplots(figsize=(12, 8))
-    
-    modules = list(stats['modules'].keys())
-    avg_times = [stats['modules'][m]['average_time'] for m in modules]
-    
-    # Sort by average time
-    sorted_data = sorted(zip(modules, avg_times), key=lambda x: x[1], reverse=True)
-    modules_sorted, avg_times_sorted = zip(*sorted_data) if sorted_data else ([], [])
-    
-    bars = ax.barh(range(len(modules_sorted)), avg_times_sorted, color='steelblue')
-    ax.set_yticks(range(len(modules_sorted)))
-    ax.set_yticklabels(modules_sorted, fontsize=9)
-    ax.set_xlabel('Average Time (hours)', fontsize=12)
-    ax.set_title('Average Time per Module', fontsize=14, fontweight='bold')
-    ax.grid(axis='x', alpha=0.3)
-    
-    # Add value labels on bars
-    for i, (bar, time) in enumerate(zip(bars, avg_times_sorted)):
-        ax.text(time + 0.5, i, f'{time:.1f}h', va='center', fontsize=8)
-    
-    plt.tight_layout()
-    plt.savefig(f"{output_dir}/module_average_times.png", dpi=150, bbox_inches='tight')
-    print(f"  ✓ Saved: {output_dir}/module_average_times.png")
-    plt.close()
-    
-    # 2. Top Students Bar Chart
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    top_students = sorted(results, key=lambda x: x['total_python_hours'], reverse=True)[:15]
-    logins = [s['login'] for s in top_students]
-    hours = [s['total_python_hours'] for s in top_students]
-    
-    bars = ax.bar(range(len(logins)), hours, color='coral')
-    ax.set_xticks(range(len(logins)))
-    ax.set_xticklabels(logins, rotation=45, ha='right', fontsize=9)
-    ax.set_ylabel('Total Hours', fontsize=12)
-    ax.set_title('Top 15 Students by Total Python Hours', fontsize=14, fontweight='bold')
-    ax.grid(axis='y', alpha=0.3)
-    
-    # Add value labels on bars
-    for bar, hour in zip(bars, hours):
-        height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2., height + 1,
-                f'{hour:.0f}h', ha='center', va='bottom', fontsize=8)
-    
-    plt.tight_layout()
-    plt.savefig(f"{output_dir}/top_students.png", dpi=150, bbox_inches='tight')
-    print(f"  ✓ Saved: {output_dir}/top_students.png")
-    plt.close()
-    
-    # 3. Time Distribution Histogram
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    all_times = [s['total_python_hours'] for s in results]
-    ax.hist(all_times, bins=20, color='mediumseagreen', edgecolor='black', alpha=0.7)
-    ax.set_xlabel('Total Hours', fontsize=12)
-    ax.set_ylabel('Number of Students', fontsize=12)
-    ax.set_title('Distribution of Total Python Hours', fontsize=14, fontweight='bold')
-    ax.axvline(stats['overall']['average_hours_per_student'], 
-               color='red', linestyle='--', linewidth=2, label='Average')
-    ax.legend()
-    ax.grid(axis='y', alpha=0.3)
-    
-    plt.tight_layout()
-    plt.savefig(f"{output_dir}/time_distribution.png", dpi=150, bbox_inches='tight')
-    print(f"  ✓ Saved: {output_dir}/time_distribution.png")
-    plt.close()
-    
-    print("  ✓ All visualizations generated successfully!")
-
-
 def generate_dashboard(results: List[Dict], output_file: str):
     """
-    Generate an interactive HTML dashboard from results
-    
+    Generate an interactive HTML dashboard from results.
+
+    Assembles a comprehensive single-file dashboard from modular template
+    parts in the dashboard/ directory.  The output contains 25 visualization
+    types (24 standard + campus comparison), each with their own sliders
+    and controls, plus global filters.
+
     Args:
         results: List of user data dictionaries
         output_file: Path to save the dashboard HTML file
     """
     print("\n📊 Generating interactive dashboard...")
-    
+
     try:
-        # Read the template
-        template_path = os.path.join(os.path.dirname(__file__), 'dashboard_template.html')
-        with open(template_path, 'r', encoding='utf-8') as f:
-            template = f.read()
-        
+        dashboard_dir = os.path.join(os.path.dirname(__file__), 'dashboard')
+
+        # Read template parts
+        def read_part(filename):
+            path = os.path.join(dashboard_dir, filename)
+            with open(path, 'r', encoding='utf-8') as f:
+                return f.read()
+
+        template = read_part('template.html')
+        styles = read_part('styles.css')
+        core_js = read_part('core.js')
+
+        # Read all chart modules in order
+        chart_files = [
+            'charts_timeline.js',
+            'charts_comparison.js',
+            'charts_performance.js',
+            'charts_flow.js',
+            'charts_statistical.js',
+            'charts_leaderboard.js',
+            'charts_advanced.js',
+            'charts_interactive.js',
+            'charts_modulestats.js',
+            'charts_campus.js',
+        ]
+        charts_js = '\n'.join(read_part(f) for f in chart_files)
+
         # Convert results to JSON
-        import json
         data_json = json.dumps(results, indent=2)
-        
-        # Replace placeholder with actual data
-        dashboard_html = template.replace('{{DATA_PLACEHOLDER}}', data_json)
-        
+
+        # Assemble dashboard: inject CSS, JS, and data into the template
+        html = template
+        html = html.replace('{{STYLES}}', styles)
+        html = html.replace('{{CORE_JS}}', core_js)
+        html = html.replace('{{CHARTS_JS}}', charts_js)
+        html = html.replace('{{DATA_PLACEHOLDER}}', data_json)
+
         # Save dashboard
         dashboard_file = output_file.replace('.json', '_dashboard.html')
         with open(dashboard_file, 'w', encoding='utf-8') as f:
-            f.write(dashboard_html)
-        
+            f.write(html)
+
         print(f"  ✓ Dashboard saved to: {dashboard_file}")
         print(f"  ✓ Open in browser to view interactive visualizations!")
-        
+
         return dashboard_file
     except Exception as e:
         print(f"  ⚠️  Could not generate dashboard: {e}")
@@ -618,7 +550,7 @@ def main():
             print(f"Cache: {cache_stats['total_files']} files, {cache_stats['total_size_mb']} MB")
         
         # Let user select campus
-        selected_campus_id = select_campus(client)
+        selected_campus_id, selected_campus_name = select_campus(client)
         
         # PROJECT-BASED USER FETCHING
         print("\n" + "=" * 60)
@@ -660,21 +592,55 @@ def main():
         
         # Process users who have Python projects
         results = []
+        zero_logtime_retries = 0
         for i, user_id in enumerate(projects_map.keys(), 1):
             user_data = process_user_from_projects(
                 user_id,
                 projects_map, 
                 locations_map,
-                new_common_core_only=USE_NEW_COMMON_CORE_ONLY
+                new_common_core_only=USE_NEW_COMMON_CORE_ONLY,
+                campus_name=selected_campus_name,
+                campus_id=selected_campus_id
             )
             if user_data:
-                results.append(user_data)
-                print(f"[{i}/{len(projects_map)}] {user_data['login']}: {user_data['total_python_hours']:.2f}h across {len(user_data['python_projects'])} projects")
+                # If total hours is 0 and caching is enabled, the cached
+                # location data may be stale.  Invalidate and re-fetch once.
+                if user_data['total_python_hours'] == 0 and client.cache:
+                    print(f"[{i}/{len(projects_map)}] {user_data['login']}: 0h detected — clearing cache and re-fetching locations...")
+                    fresh_locations = client.refetch_user_locations(
+                        user_id,
+                        begin_at=LOCATION_BEGIN_DATE,
+                        end_at=LOCATION_END_DATE
+                    )
+                    locations_map[user_id] = fresh_locations
+                    zero_logtime_retries += 1
+                    # Re-process with fresh location data
+                    user_data = process_user_from_projects(
+                        user_id,
+                        projects_map,
+                        locations_map,
+                        new_common_core_only=USE_NEW_COMMON_CORE_ONLY,
+                        campus_name=selected_campus_name,
+                        campus_id=selected_campus_id
+                    )
+                    if user_data:
+                        results.append(user_data)
+                        print(f"[{i}/{len(projects_map)}] {user_data['login']}: {user_data['total_python_hours']:.2f}h across {len(user_data['python_projects'])} projects (after retry)")
+                    else:
+                        projects = projects_map.get(user_id, [])
+                        login = projects[0].get('user', {}).get('login', 'unknown') if projects else 'unknown'
+                        print(f"[{i}/{len(projects_map)}] {login}: No Python projects (after retry)")
+                else:
+                    results.append(user_data)
+                    print(f"[{i}/{len(projects_map)}] {user_data['login']}: {user_data['total_python_hours']:.2f}h across {len(user_data['python_projects'])} projects")
             else:
                 # Get login from projects if available
                 projects = projects_map.get(user_id, [])
                 login = projects[0].get('user', {}).get('login', 'unknown') if projects else 'unknown'
                 print(f"[{i}/{len(projects_map)}] {login}: No Python projects (after filtering)")
+        
+        if zero_logtime_retries:
+            print(f"\n⟳ Re-fetched locations for {zero_logtime_retries} user(s) with 0h logtime")
         
         # Save results
         output_file = f"python_time_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
@@ -693,12 +659,6 @@ def main():
         if results:
             stats = calculate_module_statistics(results)
             display_statistics(results, stats)
-            
-            # Create static visualizations
-            try:
-                create_visualizations(results, stats)
-            except Exception as e:
-                print(f"\n⚠️  Could not generate static visualizations: {e}")
             
             # Generate interactive dashboard
             try:

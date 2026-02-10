@@ -389,6 +389,32 @@ class API42Client:
             print("  All data from cache!")
         
         return locations_by_user
+
+    def refetch_user_locations(self, user_id: int, begin_at: Optional[str] = None, end_at: Optional[str] = None) -> List[Dict]:
+        """
+        Invalidate cache and re-fetch locations for a user whose logtime was 0.
+
+        Args:
+            user_id: User ID
+            begin_at: Optional start date filter (ISO format)
+            end_at: Optional end date filter (ISO format)
+
+        Returns:
+            Fresh list of location dictionaries
+        """
+        endpoint = f"/v2/users/{user_id}/locations"
+        cache_key_params = {'paginated': 'all'}
+        if begin_at:
+            cache_key_params['range[begin_at]'] = begin_at
+        if end_at:
+            cache_key_params['range[end_at]'] = end_at
+
+        # Invalidate the cache entry for this user's locations
+        if self.cache:
+            self.cache.invalidate(endpoint, cache_key_params)
+
+        # Re-fetch from the API
+        return self.get_user_locations(user_id, begin_at, end_at)
     
     def clear_cache(self):
         """Clear all cached data"""

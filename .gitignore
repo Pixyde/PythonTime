@@ -47,5 +47,12 @@ python_time_analysis_*.json
 demo_output.json
 output/
 
+# Generated dashboards
+*_dashboard.html
+grafana_dashboard_*.html
+module_average_times.png
+top_students.png
+time_distribution.png
+
 # Cache directory
 .cache/
