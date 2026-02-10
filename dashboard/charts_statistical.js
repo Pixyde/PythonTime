@@ -10,33 +10,31 @@ registerChart('moduleprogress', function() {
 
   const viewMode = document.getElementById('modprogress-view')?.value || 'stage';
   const totalUsers = filteredData.length;
-  const totalModules = NEW_COMMON_CORE_SLUGS.length;
+  const allModuleNames = getAllModules();
+  const totalModules = allModuleNames.length;
 
   if (viewMode === 'completed') {
     // Show % of users who completed each module
     const moduleCounts = {};
-    NEW_COMMON_CORE_SLUGS.forEach(m => { moduleCounts[m] = 0; });
+    allModuleNames.forEach(m => { moduleCounts[m] = 0; });
 
     filteredData.forEach(u => {
       const finished = new Set();
       u.python_projects.forEach(p => {
-        if (p.status === 'finished') {
-          const slug = (p.project_slug || '').toLowerCase();
-          NEW_COMMON_CORE_SLUGS.forEach(m => { if (slug.includes(m)) finished.add(m); });
-        }
+        if (p.status === 'finished') finished.add(p.project_name);
       });
-      finished.forEach(m => { moduleCounts[m]++; });
+      finished.forEach(m => { if (moduleCounts[m] !== undefined) moduleCounts[m]++; });
     });
 
-    const slugs = NEW_COMMON_CORE_SLUGS.slice();
-    const pcts = slugs.map(m => (moduleCounts[m] / totalUsers) * 100);
+    const names = allModuleNames.slice();
+    const pcts = names.map(m => (moduleCounts[m] / totalUsers) * 100);
 
     const trace = {
       type: 'bar',
-      x: slugs,
+      x: names,
       y: pcts,
       marker: { color: pcts.map(p => p >= 50 ? COLORS.green : p >= 25 ? COLORS.orange : COLORS.red) },
-      text: pcts.map((p, i) => `${p.toFixed(0)}% (${moduleCounts[slugs[i]]}/${totalUsers})`),
+      text: pcts.map((p, i) => `${p.toFixed(0)}% (${moduleCounts[names[i]]}/${totalUsers})`),
       textposition: 'outside',
       textfont: { size: 9, color: '#8e8e8e' }
     };
@@ -53,14 +51,8 @@ registerChart('moduleprogress', function() {
     const stageCounts = new Array(totalModules + 1).fill(0);
 
     filteredData.forEach(u => {
-      const finished = new Set();
-      u.python_projects.forEach(p => {
-        if (p.status === 'finished') {
-          const slug = (p.project_slug || '').toLowerCase();
-          NEW_COMMON_CORE_SLUGS.forEach(m => { if (slug.includes(m)) finished.add(m); });
-        }
-      });
-      stageCounts[finished.size]++;
+      const n = countFinishedModules(u);
+      stageCounts[Math.min(n, totalModules)]++;
     });
 
     const labels = stageCounts.map((_, i) => i === totalModules ? `${i} (All Done)` : `${i}`);

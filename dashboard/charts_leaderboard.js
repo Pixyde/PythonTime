@@ -20,16 +20,9 @@ registerChart('ranking', function() {
     const avgMark = scored.length ? mean(scored.map(p => p.final_mark)) : 0;
     const efficiency = u.total_python_hours > 0 ? u.python_projects.length / u.total_python_hours : 0;
 
-    // Count unique finished module slugs
-    const finishedSlugs = new Set();
-    u.python_projects.forEach(p => {
-      if (p.status === 'finished') {
-        const slug = (p.project_slug || '').toLowerCase();
-        NEW_COMMON_CORE_SLUGS.forEach(m => { if (slug.includes(m)) finishedSlugs.add(m); });
-      }
-    });
-    const numFinished = finishedSlugs.size;
-    const totalModules = NEW_COMMON_CORE_SLUGS.length;
+    // Count unique finished module names (data-driven)
+    const numFinished = countFinishedModules(u);
+    const totalModules = getAllModules().length;
     const completionRate = (numFinished / totalModules) * 100;
 
     // Total completion time: days from first start to last end

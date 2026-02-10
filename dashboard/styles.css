@@ -367,12 +367,6 @@ body {
   letter-spacing: 0.5px;
   margin-top: 4px;
 }
-.kpi-card .kpi-trend {
-  font-size: 12px;
-  margin-top: 6px;
-}
-.kpi-card .kpi-trend.up { color: var(--green); }
-.kpi-card .kpi-trend.down { color: var(--red); }
 .kpi-card .kpi-sparkline {
   margin-top: 8px;
   height: 30px;

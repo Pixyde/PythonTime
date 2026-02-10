@@ -105,6 +105,15 @@ function getCompletionDays(project) {
   return days;
 }
 
+// Count unique finished module names for a user (data-driven, no hardcoded slugs)
+function countFinishedModules(user) {
+  const finished = new Set();
+  user.python_projects.forEach(p => {
+    if (p.status === 'finished') finished.add(p.project_name);
+  });
+  return finished.size;
+}
+
 // ---- UTILITY FUNCTIONS ----
 function getAllUsers() {
   return [...new Set(RAW_DATA.map(u => u.login))].filter(u => !EXCLUDED_USERS.includes(u)).sort();

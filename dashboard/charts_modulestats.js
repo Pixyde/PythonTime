@@ -162,5 +162,5 @@ registerChart('modulestatbar', function() {
     legend: { font: { size: 10 } },
     barmode: 'group'
   };
-  Plotly.react(el, traces, layout, PLOTLY_CONFIG);
+  Plotly.newPlot(el, traces, layout, PLOTLY_CONFIG);
 });

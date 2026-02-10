@@ -21,26 +21,11 @@ registerChart('kpi', function() {
   const activeUsers = filteredData.length;
   const avgHoursPerUser = activeUsers ? totalHours / activeUsers : 0;
 
-  // Completion rate: % of users who finished ALL modules
-  const totalModuleCount = NEW_COMMON_CORE_SLUGS.length;
-  const usersWhoFinishedAll = filteredData.filter(u => {
-    const finishedSlugs = new Set();
-    u.python_projects.forEach(p => {
-      if (p.status === 'finished') {
-        const slug = (p.project_slug || '').toLowerCase();
-        NEW_COMMON_CORE_SLUGS.forEach(m => { if (slug.includes(m)) finishedSlugs.add(m); });
-      }
-    });
-    return finishedSlugs.size >= totalModuleCount;
-  });
+  // Completion rate: % of users who finished ALL modules (data-driven)
+  const totalModuleCount = getAllModules().length;
+  const usersWhoFinishedAll = filteredData.filter(u => countFinishedModules(u) >= totalModuleCount);
   const usersFinishedAll = usersWhoFinishedAll.length;
   const completionRate = activeUsers ? (usersFinishedAll / activeUsers) * 100 : 0;
-
-  // Simple trend: compare first half vs second half of users
-  const half = Math.floor(filteredData.length / 2);
-  const firstHalfHours = filteredData.slice(0, half).reduce((s, u) => s + u.total_python_hours, 0);
-  const secondHalfHours = filteredData.slice(half).reduce((s, u) => s + u.total_python_hours, 0);
-  const hoursTrend = half > 0 ? ((secondHalfHours / Math.max(firstHalfHours, 1)) - 1) * 100 : 0;
 
   // Average total completion time (all users): days from first project start to last project end
   const completionDays = [];
@@ -69,7 +54,7 @@ registerChart('kpi', function() {
   const avgAllDoneDays = allDoneDays.length ? mean(allDoneDays) : 0;
 
   const kpis = [
-    { label: 'Total Hours', value: formatNumber(totalHours), icon: '⏱️', color: COLORS.primary, trend: hoursTrend },
+    { label: 'Total Hours', value: formatNumber(totalHours), icon: '⏱️', color: COLORS.primary },
     { label: 'Active Users', value: activeUsers, icon: '👥', color: COLORS.cyan },
     { label: 'Avg Score', value: avgScore.toFixed(1), icon: '📊', color: COLORS.purple },
     { label: 'Completed All Modules', value: completionRate.toFixed(0) + '% (' + usersFinishedAll + ')', icon: '✅', color: COLORS.green },
@@ -85,7 +70,6 @@ registerChart('kpi', function() {
       <div style="font-size:24px;margin-bottom:4px">${kpi.icon}</div>
       <div class="kpi-value" style="color:${kpi.color}">${kpi.value}</div>
       <div class="kpi-label">${kpi.label}</div>
-      ${kpi.trend !== undefined ? `<div class="kpi-trend ${kpi.trend >= 0 ? 'up' : 'down'}">${kpi.trend >= 0 ? '▲' : '▼'} ${Math.abs(kpi.trend).toFixed(1)}%</div>` : ''}
     </div>
   `).join('') + '</div>';
 });
