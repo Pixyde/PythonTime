@@ -27,7 +27,7 @@ registerChart('ranking', function() {
     const ends = u.python_projects.map(p => p.end_date).filter(Boolean).map(d => new Date(d));
     let completionDays = null;
     if (starts.length && ends.length) {
-      const days = (new Date(Math.max(...ends)) - new Date(Math.min(...starts))) / (1000 * 60 * 60 * 24);
+      const days = (new Date(Math.max(...ends)) - new Date(Math.min(...starts))) / MS_PER_DAY;
       if (days > 0) completionDays = days;
     }
 

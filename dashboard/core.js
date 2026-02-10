@@ -54,6 +54,8 @@ const COLORS = {
             '#4dc9f6','#f67019','#f53794','#537bc4','#acc236','#166a8f','#00a950','#58595b','#8549ba','#e6194b']
 };
 
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
 const STATUS_COLORS = {
   finished: '#73bf69',
   in_progress: '#5794f2',
@@ -104,7 +106,7 @@ function getCompletionDays(project) {
   const start = new Date(project.start_date);
   const end = new Date(project.end_date);
   if (end <= start) return null;
-  const days = (end - start) / (1000 * 60 * 60 * 24);
+  const days = (end - start) / MS_PER_DAY;
   return days;
 }
 

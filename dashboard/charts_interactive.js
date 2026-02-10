@@ -36,7 +36,7 @@ registerChart('kpi', function() {
     if (starts.length && ends.length) {
       const earliest = new Date(Math.min(...starts));
       const latest = new Date(Math.max(...ends));
-      const days = (latest - earliest) / (1000 * 60 * 60 * 24);
+      const days = (latest - earliest) / MS_PER_DAY;
       if (days > 0) completionDays.push(days);
     }
   });
