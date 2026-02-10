@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from api_client import API42Client
 from data_processor import DataProcessor
+from dashboard_generator import DashboardGenerator
 
 
 # Campus IDs (you may need to adjust these)
@@ -313,7 +314,7 @@ def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_
     return users_projects_map
 
 
-def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]], locations_map: Dict[int, List[Dict]], new_common_core_only: bool = False) -> Dict:
+def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]], locations_map: Dict[int, List[Dict]], client: 'API42Client' = None, begin_at: str = None, end_at: str = None, new_common_core_only: bool = False) -> Dict:
     """
     Process a user's data using pre-fetched project and location data
     
@@ -321,6 +322,9 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
         user_id: User ID
         projects_map: Map of user_id -> projects list
         locations_map: Map of user_id -> locations list
+        client: API client for cache validation
+        begin_at: Start date for location filtering
+        end_at: End date for location filtering
         new_common_core_only: If True, filter to only new common core modules
         
     Returns:
@@ -333,10 +337,32 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
     if not projects:
         return None
     
+    # Validate cached location data and refresh if bad cache detected
+    # Note: Check 'is not None' instead of truthiness to handle empty lists []
+    if client and locations is not None:
+        locations = client.validate_and_refresh_locations(
+            user_id, projects, locations, begin_at, end_at
+        )
+        # Update the map with validated locations
+        locations_map[user_id] = locations
+    
     # Extract user info from first project entry
     user = projects[0].get('user', {})
     login = user.get('login', 'unknown')
     email = user.get('email', '')
+    
+    # Extract campus information from user data
+    campus_id = None
+    campus_name = 'Unknown'
+    if 'campus' in user and user['campus']:
+        if isinstance(user['campus'], list) and len(user['campus']) > 0:
+            # Campus is a list, take the first one
+            campus_id = user['campus'][0].get('id')
+            campus_name = user['campus'][0].get('name', 'Unknown')
+        elif isinstance(user['campus'], dict):
+            # Campus is a dict
+            campus_id = user['campus'].get('id')
+            campus_name = user['campus'].get('name', 'Unknown')
     
     # Filter to Python projects (optionally only new common core)
     python_projects = DataProcessor.filter_python_projects(projects, new_common_core_only=new_common_core_only)
@@ -357,6 +383,8 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
         'user_id': user_id,
         'login': login,
         'email': email,
+        'campus_id': campus_id,
+        'campus_name': campus_name,
         'cursus_level': cursus_level,
         'python_projects': analysis,
         'total_python_hours': sum(p['time_spent_hours'] for p in analysis)
@@ -365,29 +393,53 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
 
 def calculate_module_statistics(results: List[Dict]) -> Dict:
     """
-    Calculate statistics for each module and overall averages
+    Calculate statistics for each module, overall averages, and campus comparisons
     
     Args:
         results: List of student data dictionaries
         
     Returns:
-        Dictionary with module statistics and averages
+        Dictionary with module statistics, overall stats, and campus stats
     """
     from collections import defaultdict
     
     # Collect data per module
     module_data = defaultdict(lambda: {'times': [], 'students': 0, 'total_time': 0})
     
+    # Collect data per campus
+    campus_data = defaultdict(lambda: {
+        'total_hours': 0,
+        'students': 0,
+        'projects_finished': 0,
+        'projects_total': 0,
+        'scores': []
+    })
+    
     for student in results:
+        campus_name = student.get('campus_name', 'Unknown')
+        campus_id = student.get('campus_id')
+        
+        # Track campus-level stats
+        campus_data[campus_name]['students'] += 1
+        campus_data[campus_name]['total_hours'] += student.get('total_python_hours', 0)
+        
         for project in student['python_projects']:
             module_name = project['project_name']
             time_spent = project['time_spent_hours']
             
+            # Module stats
             module_data[module_name]['times'].append(time_spent)
             module_data[module_name]['students'] += 1
             module_data[module_name]['total_time'] += time_spent
+            
+            # Campus project stats
+            campus_data[campus_name]['projects_total'] += 1
+            if project.get('status') == 'finished':
+                campus_data[campus_name]['projects_finished'] += 1
+            if project.get('final_mark') is not None:
+                campus_data[campus_name]['scores'].append(project['final_mark'])
     
-    # Calculate averages
+    # Calculate module averages
     module_stats = {}
     for module_name, data in module_data.items():
         module_stats[module_name] = {
@@ -398,17 +450,37 @@ def calculate_module_statistics(results: List[Dict]) -> Dict:
             'max_time': max(data['times']) if data['times'] else 0,
         }
     
+    # Calculate campus statistics
+    campus_stats = {}
+    for campus_name, data in campus_data.items():
+        avg_hours = data['total_hours'] / data['students'] if data['students'] > 0 else 0
+        completion_rate = (data['projects_finished'] / data['projects_total'] * 100) if data['projects_total'] > 0 else 0
+        avg_score = sum(data['scores']) / len(data['scores']) if data['scores'] else 0
+        
+        campus_stats[campus_name] = {
+            'students': data['students'],
+            'total_hours': data['total_hours'],
+            'average_hours': avg_hours,
+            'projects_total': data['projects_total'],
+            'projects_finished': data['projects_finished'],
+            'completion_rate': completion_rate,
+            'average_score': avg_score,
+            'efficiency': avg_score / avg_hours if avg_hours > 0 else 0
+        }
+    
     # Calculate overall statistics
     total_hours = sum(s['total_python_hours'] for s in results)
     overall_stats = {
         'total_students': len(results),
         'total_hours': total_hours,
         'average_hours_per_student': total_hours / len(results) if results else 0,
+        'total_campuses': len(campus_stats)
     }
     
     return {
         'modules': module_stats,
-        'overall': overall_stats
+        'overall': overall_stats,
+        'campuses': campus_stats
     }
 
 
@@ -447,6 +519,25 @@ def display_statistics(results: List[Dict], stats: Dict):
         print(f"{module_name:<40} {module_stats['total_students']:<12} "
               f"{module_stats['average_time']:<12.2f} {module_stats['total_time']:<12.2f}")
     
+    # Campus statistics (if available)
+    if 'campuses' in stats and stats['campuses']:
+        print("\n🏫 Campus Statistics:")
+        print("-" * 100)
+        print(f"{'Campus Name':<30} {'Students':<10} {'Avg Hours':<12} {'Completion %':<15} {'Avg Score':<12}")
+        print("-" * 100)
+        
+        # Sort campuses by number of students (descending)
+        sorted_campuses = sorted(
+            stats['campuses'].items(),
+            key=lambda x: x[1]['students'],
+            reverse=True
+        )
+        
+        for campus_name, campus_stats in sorted_campuses:
+            print(f"{campus_name:<30} {campus_stats['students']:<10} "
+                  f"{campus_stats['average_hours']:<12.2f} {campus_stats['completion_rate']:<15.1f} "
+                  f"{campus_stats['average_score']:<12.1f}")
+    
     print("-" * 80)
     
     # Individual student breakdown
@@ -463,133 +554,7 @@ def display_statistics(results: List[Dict], stats: Dict):
                   f"[{project['status']}] Mark: {project['final_mark']}")
 
 
-def create_visualizations(results: List[Dict], stats: Dict, output_dir: str = "."):
-    """
-    Create visualizations for the data using matplotlib
-    
-    Args:
-        results: List of student data dictionaries
-        stats: Statistics dictionary
-        output_dir: Directory to save visualizations
-    """
-    try:
-        import matplotlib.pyplot as plt
-        import matplotlib
-        matplotlib.use('Agg')  # Use non-interactive backend
-    except ImportError:
-        print("\n⚠️  Matplotlib not installed. Skipping visualizations.")
-        print("   Install with: pip install matplotlib")
-        return
-    
-    print("\n📈 Generating visualizations...")
-    
-    # 1. Module Average Time Bar Chart
-    fig, ax = plt.subplots(figsize=(12, 8))
-    
-    modules = list(stats['modules'].keys())
-    avg_times = [stats['modules'][m]['average_time'] for m in modules]
-    
-    # Sort by average time
-    sorted_data = sorted(zip(modules, avg_times), key=lambda x: x[1], reverse=True)
-    modules_sorted, avg_times_sorted = zip(*sorted_data) if sorted_data else ([], [])
-    
-    bars = ax.barh(range(len(modules_sorted)), avg_times_sorted, color='steelblue')
-    ax.set_yticks(range(len(modules_sorted)))
-    ax.set_yticklabels(modules_sorted, fontsize=9)
-    ax.set_xlabel('Average Time (hours)', fontsize=12)
-    ax.set_title('Average Time per Module', fontsize=14, fontweight='bold')
-    ax.grid(axis='x', alpha=0.3)
-    
-    # Add value labels on bars
-    for i, (bar, time) in enumerate(zip(bars, avg_times_sorted)):
-        ax.text(time + 0.5, i, f'{time:.1f}h', va='center', fontsize=8)
-    
-    plt.tight_layout()
-    plt.savefig(f"{output_dir}/module_average_times.png", dpi=150, bbox_inches='tight')
-    print(f"  ✓ Saved: {output_dir}/module_average_times.png")
-    plt.close()
-    
-    # 2. Top Students Bar Chart
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    top_students = sorted(results, key=lambda x: x['total_python_hours'], reverse=True)[:15]
-    logins = [s['login'] for s in top_students]
-    hours = [s['total_python_hours'] for s in top_students]
-    
-    bars = ax.bar(range(len(logins)), hours, color='coral')
-    ax.set_xticks(range(len(logins)))
-    ax.set_xticklabels(logins, rotation=45, ha='right', fontsize=9)
-    ax.set_ylabel('Total Hours', fontsize=12)
-    ax.set_title('Top 15 Students by Total Python Hours', fontsize=14, fontweight='bold')
-    ax.grid(axis='y', alpha=0.3)
-    
-    # Add value labels on bars
-    for bar, hour in zip(bars, hours):
-        height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2., height + 1,
-                f'{hour:.0f}h', ha='center', va='bottom', fontsize=8)
-    
-    plt.tight_layout()
-    plt.savefig(f"{output_dir}/top_students.png", dpi=150, bbox_inches='tight')
-    print(f"  ✓ Saved: {output_dir}/top_students.png")
-    plt.close()
-    
-    # 3. Time Distribution Histogram
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    all_times = [s['total_python_hours'] for s in results]
-    ax.hist(all_times, bins=20, color='mediumseagreen', edgecolor='black', alpha=0.7)
-    ax.set_xlabel('Total Hours', fontsize=12)
-    ax.set_ylabel('Number of Students', fontsize=12)
-    ax.set_title('Distribution of Total Python Hours', fontsize=14, fontweight='bold')
-    ax.axvline(stats['overall']['average_hours_per_student'], 
-               color='red', linestyle='--', linewidth=2, label='Average')
-    ax.legend()
-    ax.grid(axis='y', alpha=0.3)
-    
-    plt.tight_layout()
-    plt.savefig(f"{output_dir}/time_distribution.png", dpi=150, bbox_inches='tight')
-    print(f"  ✓ Saved: {output_dir}/time_distribution.png")
-    plt.close()
-    
-    print("  ✓ All visualizations generated successfully!")
 
-
-def generate_dashboard(results: List[Dict], output_file: str):
-    """
-    Generate an interactive HTML dashboard from results
-    
-    Args:
-        results: List of user data dictionaries
-        output_file: Path to save the dashboard HTML file
-    """
-    print("\n📊 Generating interactive dashboard...")
-    
-    try:
-        # Read the template
-        template_path = os.path.join(os.path.dirname(__file__), 'dashboard_template.html')
-        with open(template_path, 'r', encoding='utf-8') as f:
-            template = f.read()
-        
-        # Convert results to JSON
-        import json
-        data_json = json.dumps(results, indent=2)
-        
-        # Replace placeholder with actual data
-        dashboard_html = template.replace('{{DATA_PLACEHOLDER}}', data_json)
-        
-        # Save dashboard
-        dashboard_file = output_file.replace('.json', '_dashboard.html')
-        with open(dashboard_file, 'w', encoding='utf-8') as f:
-            f.write(dashboard_html)
-        
-        print(f"  ✓ Dashboard saved to: {dashboard_file}")
-        print(f"  ✓ Open in browser to view interactive visualizations!")
-        
-        return dashboard_file
-    except Exception as e:
-        print(f"  ⚠️  Could not generate dashboard: {e}")
-        return None
 
 
 def main():
@@ -665,6 +630,9 @@ def main():
                 user_id,
                 projects_map, 
                 locations_map,
+                client=client,
+                begin_at=LOCATION_BEGIN_DATE,
+                end_at=LOCATION_END_DATE,
                 new_common_core_only=USE_NEW_COMMON_CORE_ONLY
             )
             if user_data:
@@ -694,17 +662,17 @@ def main():
             stats = calculate_module_statistics(results)
             display_statistics(results, stats)
             
-            # Create static visualizations
-            try:
-                create_visualizations(results, stats)
-            except Exception as e:
-                print(f"\n⚠️  Could not generate static visualizations: {e}")
-            
             # Generate interactive dashboard
             try:
-                generate_dashboard(results, output_file)
+                print("\n📊 Generating interactive dashboard...")
+                generator = DashboardGenerator(results, stats)
+                dashboard_file = generator.generate(output_file)
+                print(f"  ✓ Dashboard saved to: {dashboard_file}")
+                print(f"  ✓ Open in browser to view interactive visualizations!")
             except Exception as e:
                 print(f"\n⚠️  Could not generate dashboard: {e}")
+                import traceback
+                traceback.print_exc()
         
         # Show cache stats again
         cache_stats = client.get_cache_stats()

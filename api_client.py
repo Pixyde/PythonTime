@@ -360,6 +360,7 @@ class API42Client:
         
         # Check cache for each user first
         users_needing_fetch = []
+        users_needing_revalidation = []
         cache_key_params = {'paginated': 'all'}
         if begin_at:
             cache_key_params['range[begin_at]'] = begin_at
@@ -372,6 +373,8 @@ class API42Client:
                 cached_data = self.cache.get(endpoint, cache_key_params)
                 if cached_data is not None:
                     locations_by_user[user_id] = cached_data
+                    # Mark for revalidation check (will be done after projects are known)
+                    users_needing_revalidation.append(user_id)
                 else:
                     users_needing_fetch.append(user_id)
             else:
@@ -388,7 +391,61 @@ class API42Client:
         else:
             print("  All data from cache!")
         
+        # Store list of users that need revalidation for later check
+        self._users_needing_revalidation = users_needing_revalidation
+        self._cache_key_params = cache_key_params
+        
         return locations_by_user
+    
+    def validate_and_refresh_locations(self, user_id: int, projects: List[Dict], locations: List[Dict], 
+                                       begin_at: Optional[str] = None, end_at: Optional[str] = None) -> List[Dict]:
+        """
+        Validate cached location data and refresh if bad data is detected
+        
+        Bad data is defined as: 0.0 total logtime when user has multiple finished projects
+        
+        Args:
+            user_id: User ID
+            projects: User's projects list
+            locations: User's cached locations
+            begin_at: Optional start date filter
+            end_at: Optional end date filter
+            
+        Returns:
+            Validated locations (either original or freshly fetched)
+        """
+        # Calculate total logtime
+        from data_processor import DataProcessor
+        total_logtime = sum(DataProcessor.calculate_logtime_duration(loc) for loc in locations)
+        
+        # Count total projects (any status)
+        total_projects = len(projects)
+        
+        # Detect bad cached data: 0.0 logtime with 2+ projects
+        # If a user has multiple projects (any status), they should have some logtime
+        if total_logtime == 0.0 and total_projects >= 2:
+            print(f"  ⚠️  Bad cache detected for user {user_id}: 0.0h logtime with {total_projects} projects")
+            print(f"      Invalidating cache and refetching...")
+            
+            # Invalidate cache
+            endpoint = f"/v2/users/{user_id}/locations"
+            cache_key_params = {'paginated': 'all'}
+            if begin_at:
+                cache_key_params['range[begin_at]'] = begin_at
+            if end_at:
+                cache_key_params['range[end_at]'] = end_at
+            
+            if self.cache:
+                self.cache.invalidate(endpoint, cache_key_params)
+            
+            # Fetch fresh data
+            fresh_locations = self.get_user_locations(user_id, begin_at, end_at)
+            fresh_logtime = sum(DataProcessor.calculate_logtime_duration(loc) for loc in fresh_locations)
+            print(f"      ✓ Refetched: {fresh_logtime:.2f}h (from {len(fresh_locations)} location entries)")
+            
+            return fresh_locations
+        
+        return locations
     
     def clear_cache(self):
         """Clear all cached data"""
