@@ -167,7 +167,7 @@ registerChart('campus', function() {
   Plotly.react(el, traces, layout, PLOTLY_CONFIG);
 });
 
-// ---- 28. PROMO COMPLETION — % who finished all modules ----
+// ---- 28. PROMO COMPLETION — % who finished all modules (New Common Core only) ----
 registerChart('promoCompletion', function() {
   const el = document.getElementById('chart-28');
   if (!el) return;
@@ -178,13 +178,18 @@ registerChart('promoCompletion', function() {
     return;
   }
 
-  const allModules = getAllModules();
-  const moduleCount = allModules.length;
-  if (moduleCount === 0) { el.innerHTML = '<div class="chart-empty">No modules found</div>'; return; }
+  // Only consider new common core modules and users
+  const nccModules = getNewCommonCoreModules();
+  const moduleCount = nccModules.length;
+  if (moduleCount === 0) { el.innerHTML = '<div class="chart-empty">No new common core modules found</div>'; return; }
+
+  // Filter to only users on the new common core
+  const nccUsers = filteredData.filter(u => isNewCommonCoreUser(u));
+  if (!nccUsers.length) { el.innerHTML = '<div class="chart-empty">No new common core users found</div>'; return; }
 
   // Group by campus
   const campusGroups = {};
-  filteredData.forEach(u => {
+  nccUsers.forEach(u => {
     const campus = u.campus_name || 'Unknown';
     if (!campusGroups[campus]) campusGroups[campus] = [];
     campusGroups[campus].push(u);
@@ -192,7 +197,7 @@ registerChart('promoCompletion', function() {
 
   const campusNames = Object.keys(campusGroups).sort();
 
-  // For each campus, calculate % of users who finished ALL modules
+  // For each campus, calculate % of new common core users who finished ALL NCC modules
   const finishedAll = [];
   const finishedMost = []; // >= 75% modules
   const totalUsers = [];
@@ -204,7 +209,11 @@ registerChart('promoCompletion', function() {
     let doneAll = 0;
     let doneMost = 0;
     users.forEach(u => {
-      const finishedModules = new Set(u.python_projects.filter(p => p.status === 'finished').map(p => p.project_name));
+      const finishedModules = new Set(
+        u.python_projects
+          .filter(p => p.status === 'finished' && isNewCommonCoreProject(p))
+          .map(p => p.project_name)
+      );
       if (finishedModules.size >= moduleCount) doneAll++;
       if (finishedModules.size >= moduleCount * 0.75) doneMost++;
     });
@@ -225,26 +234,26 @@ registerChart('promoCompletion', function() {
   const traces = [
     {
       type: 'bar',
-      name: `Finished all ${moduleCount} modules`,
+      name: `Finished all ${moduleCount} NCC modules`,
       x: [...campusNames, '⊕ Global'],
       y: [...pctAll, globalPctAll],
       text: [...pctAll.map((v, i) => `${v.toFixed(0)}% (${finishedAll[i]}/${totalUsers[i]})`), `${globalPctAll.toFixed(0)}% (${globalAll}/${globalTotal})`],
       textposition: 'outside',
       textfont: { size: 9, color: '#8e8e8e' },
       marker: { color: COLORS.green },
-      hovertext: campusNames.map((c, i) => `${c}<br>${finishedAll[i]}/${totalUsers[i]} users finished all ${moduleCount} modules`).concat([`Global: ${globalAll}/${globalTotal}`]),
+      hovertext: campusNames.map((c, i) => `${c}<br>${finishedAll[i]}/${totalUsers[i]} NCC users finished all ${moduleCount} modules`).concat([`Global: ${globalAll}/${globalTotal}`]),
       hoverinfo: 'text'
     },
     {
       type: 'bar',
-      name: `Finished ≥75% modules`,
+      name: `Finished ≥75% NCC modules`,
       x: [...campusNames, '⊕ Global'],
       y: [...pctMost, globalPctMost],
       text: [...pctMost.map((v, i) => `${v.toFixed(0)}%`), `${globalPctMost.toFixed(0)}%`],
       textposition: 'outside',
       textfont: { size: 9, color: '#8e8e8e' },
       marker: { color: COLORS.cyan },
-      hovertext: campusNames.map((c, i) => `${c}<br>${finishedMost[i]}/${totalUsers[i]} users finished ≥75% of modules`).concat([`Global: ${globalMost}/${globalTotal}`]),
+      hovertext: campusNames.map((c, i) => `${c}<br>${finishedMost[i]}/${totalUsers[i]} NCC users finished ≥75% of modules`).concat([`Global: ${globalMost}/${globalTotal}`]),
       hoverinfo: 'text'
     }
   ];
@@ -253,7 +262,7 @@ registerChart('promoCompletion', function() {
     ...PLOTLY_LAYOUT_DEFAULTS,
     barmode: 'group',
     xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, title: 'Campus' },
-    yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, title: 'Percentage of Students', range: [0, Math.max(...pctMost, globalPctMost, 10) * 1.2] },
+    yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, title: 'Percentage of NCC Students', range: [0, Math.max(...pctMost, globalPctMost, 10) * 1.2] },
     legend: { font: { size: 10 } }
   };
   Plotly.react(el, traces, layout, PLOTLY_CONFIG);

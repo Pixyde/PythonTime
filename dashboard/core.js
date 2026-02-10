@@ -57,6 +57,52 @@ const STATUS_COLORS = {
   unknown: '#8e8e8e'
 };
 
+// ---- NEW COMMON CORE MODULE SLUGS ----
+const NEW_COMMON_CORE_SLUGS = [
+  'python-0-starting',
+  'python-1-base',
+  'python-2-datascience',
+  'python-3-oop',
+  'python-module-00',
+  'python-module-01',
+  'python-module-02',
+  'python-module-03',
+  'python-module-04',
+  'piscine-python',
+  'piscine-python-datascience',
+  'django-0-starting',
+  'django-1-base-django',
+  'django-2-sql',
+  'django-3-advanced',
+  'django-4-final',
+];
+
+function isNewCommonCoreProject(project) {
+  const slug = (project.project_slug || '').toLowerCase();
+  const name = (project.project_name || '').toLowerCase();
+  return NEW_COMMON_CORE_SLUGS.some(m => slug.includes(m) || name.includes(m));
+}
+
+function getNewCommonCoreModules() {
+  const modules = new Set();
+  RAW_DATA.forEach(u => u.python_projects.forEach(p => {
+    if (isNewCommonCoreProject(p)) modules.add(p.project_name);
+  }));
+  return [...modules].sort();
+}
+
+function isNewCommonCoreUser(user) {
+  return user.python_projects.some(p => isNewCommonCoreProject(p));
+}
+
+function getCompletionDays(project) {
+  if (!project.start_date || !project.end_date) return null;
+  const start = new Date(project.start_date);
+  const end = new Date(project.end_date);
+  const days = (end - start) / (1000 * 60 * 60 * 24);
+  return days > 0 ? days : null;
+}
+
 // ---- UTILITY FUNCTIONS ----
 function getAllUsers() {
   return [...new Set(RAW_DATA.map(u => u.login))].sort();

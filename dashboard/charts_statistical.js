@@ -1,11 +1,11 @@
 /* ============================================================
    Charts: Statistical Visualizations (13-15)
-   13. Histogram - Hour Distribution
-   14. Cumulative Distribution (CDF)
+   13. Histogram - Module Completion Time Distribution
+   14. Cumulative Distribution (CDF) of Completion Time
    15. Correlation Matrix
    ============================================================ */
 
-// ---- 13. HISTOGRAM - HOUR DISTRIBUTION ----
+// ---- 13. HISTOGRAM - MODULE COMPLETION TIME DISTRIBUTION ----
 registerChart('histogram', function() {
   const el = document.getElementById('chart-13');
   if (!el) return;
@@ -18,18 +18,24 @@ registerChart('histogram', function() {
   const logScale = document.getElementById('histogram-log')?.checked || false;
   const showNormal = document.getElementById('histogram-normal')?.checked || false;
 
-  const allHours = flattenProjects(filteredData).map(p => p.time_spent_hours);
+  // Compute completion time (days) for each finished project
+  const allProjects = flattenProjects(filteredData).filter(p => p.status === 'finished');
+  const allDays = allProjects.map(p => getCompletionDays(p)).filter(d => d !== null);
+
+  if (!allDays.length) { el.innerHTML = '<div class="chart-empty">No completed modules with date data</div>'; return; }
 
   let traces;
   if (splitByModule) {
-    const moduleHours = {};
-    flattenProjects(filteredData).forEach(p => {
-      if (!moduleHours[p.project_name]) moduleHours[p.project_name] = [];
-      moduleHours[p.project_name].push(p.time_spent_hours);
+    const moduleDays = {};
+    allProjects.forEach(p => {
+      const days = getCompletionDays(p);
+      if (days === null) return;
+      if (!moduleDays[p.project_name]) moduleDays[p.project_name] = [];
+      moduleDays[p.project_name].push(days);
     });
-    traces = Object.entries(moduleHours).map(([mod, hours], i) => ({
+    traces = Object.entries(moduleDays).map(([mod, days], i) => ({
       type: 'histogram',
-      x: hours,
+      x: days,
       name: mod,
       opacity: 0.7,
       xbins: { size: binSize },
@@ -38,27 +44,27 @@ registerChart('histogram', function() {
   } else {
     traces = [{
       type: 'histogram',
-      x: allHours,
+      x: allDays,
       xbins: { size: binSize },
       marker: { color: COLORS.primary + 'cc' },
-      name: 'Hours'
+      name: 'Completion Days'
     }];
   }
 
   const shapes = [];
-  if (showMean && allHours.length) {
-    const m = mean(allHours);
+  if (showMean && allDays.length) {
+    const m = mean(allDays);
     shapes.push({ type: 'line', x0: m, x1: m, y0: 0, y1: 1, yref: 'paper', line: { color: COLORS.red, width: 2, dash: 'dash' } });
   }
-  if (showMedian && allHours.length) {
-    const med = percentile(allHours, 50);
+  if (showMedian && allDays.length) {
+    const med = percentile(allDays, 50);
     shapes.push({ type: 'line', x0: med, x1: med, y0: 0, y1: 1, yref: 'paper', line: { color: COLORS.green, width: 2, dash: 'dot' } });
   }
 
   // Normal distribution overlay
-  if (showNormal && allHours.length > 2) {
-    const m = mean(allHours);
-    const std = Math.sqrt(allHours.reduce((s, x) => s + (x - m) ** 2, 0) / allHours.length);
+  if (showNormal && allDays.length > 2) {
+    const m = mean(allDays);
+    const std = Math.sqrt(allDays.reduce((s, x) => s + (x - m) ** 2, 0) / allDays.length);
     if (std > 0) {
       const xRange = [];
       const yRange = [];
@@ -66,7 +72,7 @@ registerChart('histogram', function() {
       const maxX = m + 3 * std;
       for (let x = minX; x <= maxX; x += (maxX - minX) / 100) {
         xRange.push(x);
-        yRange.push((allHours.length * binSize) / (std * Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * ((x - m) / std) ** 2));
+        yRange.push((allDays.length * binSize) / (std * Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * ((x - m) / std) ** 2));
       }
       traces.push({
         type: 'scatter', mode: 'lines', name: 'Normal Dist.',
@@ -79,7 +85,7 @@ registerChart('histogram', function() {
   const layout = {
     ...PLOTLY_LAYOUT_DEFAULTS,
     barmode: splitByModule ? 'overlay' : undefined,
-    xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, title: 'Hours' },
+    xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, title: 'Days to Complete' },
     yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, title: 'Count', type: logScale ? 'log' : 'linear' },
     shapes,
     legend: { font: { size: 9 }, orientation: 'h', y: -0.15 },
@@ -88,7 +94,7 @@ registerChart('histogram', function() {
   Plotly.react(el, traces, layout, PLOTLY_CONFIG);
 });
 
-// ---- 14. CUMULATIVE DISTRIBUTION (CDF) ----
+// ---- 14. CUMULATIVE DISTRIBUTION (CDF) OF COMPLETION TIME ----
 registerChart('cdf', function() {
   const el = document.getElementById('chart-14');
   if (!el) return;
@@ -106,17 +112,22 @@ registerChart('cdf', function() {
     return { x, y };
   }
 
+  // Use completion time (days) for finished projects
+  const allProjects = flattenProjects(filteredData).filter(p => p.status === 'finished');
+
   let traces = [];
   const shapes = [];
 
   if (perModule) {
-    const moduleHours = {};
-    flattenProjects(filteredData).forEach(p => {
-      if (!moduleHours[p.project_name]) moduleHours[p.project_name] = [];
-      moduleHours[p.project_name].push(p.time_spent_hours);
+    const moduleDays = {};
+    allProjects.forEach(p => {
+      const days = getCompletionDays(p);
+      if (days === null) return;
+      if (!moduleDays[p.project_name]) moduleDays[p.project_name] = [];
+      moduleDays[p.project_name].push(days);
     });
-    traces = Object.entries(moduleHours).map(([mod, hours], i) => {
-      const cdf = buildCDF(hours);
+    traces = Object.entries(moduleDays).map(([mod, days], i) => {
+      const cdf = buildCDF(days);
       return {
         type: 'scatter', mode: 'lines', name: mod,
         x: cdf.x, y: cdf.y,
@@ -124,10 +135,11 @@ registerChart('cdf', function() {
       };
     });
   } else {
-    const allHours = filteredData.map(u => u.total_python_hours);
-    const cdf = buildCDF(allHours);
+    const allDays = allProjects.map(p => getCompletionDays(p)).filter(d => d !== null);
+    if (!allDays.length) { el.innerHTML = '<div class="chart-empty">No completed modules with date data</div>'; return; }
+    const cdf = buildCDF(allDays);
     traces.push({
-      type: 'scatter', mode: 'lines', name: 'All Users',
+      type: 'scatter', mode: 'lines', name: 'All Modules',
       x: cdf.x, y: cdf.y,
       line: { color: COLORS.primary, width: 2 },
       fill: 'tozeroy',
@@ -140,14 +152,14 @@ registerChart('cdf', function() {
     if (p75) pctLines.push({ p: 75, color: COLORS.orange });
     if (p90) pctLines.push({ p: 90, color: COLORS.red });
     pctLines.forEach(({ p: pct, color }) => {
-      const val = percentile(allHours, pct);
+      const val = percentile(allDays, pct);
       shapes.push({ type: 'line', x0: val, x1: val, y0: 0, y1: pct, line: { color, width: 1, dash: 'dot' } });
       shapes.push({ type: 'line', x0: 0, x1: val, y0: pct, y1: pct, line: { color, width: 1, dash: 'dot' } });
       traces.push({
         type: 'scatter', mode: 'markers+text', name: `P${pct}`,
         x: [val], y: [pct],
         marker: { color, size: 8 },
-        text: [`P${pct}: ${val.toFixed(1)}h`],
+        text: [`P${pct}: ${val.toFixed(1)}d`],
         textposition: 'top right',
         textfont: { color, size: 10 }
       });
@@ -156,7 +168,7 @@ registerChart('cdf', function() {
 
   const layout = {
     ...PLOTLY_LAYOUT_DEFAULTS,
-    xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, title: 'Hours' },
+    xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, title: 'Days to Complete' },
     yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, title: 'Cumulative %', range: [0, 105] },
     shapes,
     legend: { font: { size: 9 } },
@@ -173,19 +185,20 @@ registerChart('correlation', function() {
 
   const showValues = document.getElementById('corr-values')?.checked !== false;
 
-  // Build metrics per user
+  // Build metrics per user — focused on time to complete
   const metrics = {};
-  const metricNames = ['Total Hours', 'Avg Mark', 'Completion Rate', 'Num Projects', 'Max Hours', 'Avg Hours/Project'];
+  const metricNames = ['Avg Completion Days', 'Max Completion Days', 'Total Hours', 'Avg Mark', 'Num Projects', 'Avg Hours/Project'];
 
   filteredData.forEach(u => {
     const scored = u.python_projects.filter(p => p.final_mark !== null && p.final_mark !== undefined);
     const finished = u.python_projects.filter(p => p.status === 'finished');
+    const completionDays = finished.map(p => getCompletionDays(p)).filter(d => d !== null);
     const row = {
+      'Avg Completion Days': completionDays.length ? mean(completionDays) : 0,
+      'Max Completion Days': completionDays.length ? Math.max(...completionDays) : 0,
       'Total Hours': u.total_python_hours,
       'Avg Mark': scored.length ? mean(scored.map(p => p.final_mark)) : 0,
-      'Completion Rate': u.python_projects.length ? (finished.length / u.python_projects.length) * 100 : 0,
       'Num Projects': u.python_projects.length,
-      'Max Hours': Math.max(...u.python_projects.map(p => p.time_spent_hours), 0),
       'Avg Hours/Project': u.python_projects.length ? u.total_python_hours / u.python_projects.length : 0
     };
     metricNames.forEach(m => {

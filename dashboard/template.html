@@ -277,13 +277,13 @@
 
 <!-- ===== STATISTICAL SECTION ===== -->
 <div class="section" data-section="statistical">
-  <div class="section-title">📊 Statistical Visualizations</div>
+  <div class="section-title">📊 Statistical Visualizations — Module Completion Time Analysis</div>
   <div class="grid">
     <!-- 13. Histogram -->
     <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">13</span> Histogram - Hour Distribution</h3><span class="panel-badge">Statistical</span></div>
+      <div class="panel-header"><h3><span class="panel-number">13</span> Histogram - Module Completion Time Distribution</h3><span class="panel-badge">Statistical</span></div>
       <div class="panel-controls">
-        <div class="ctrl"><label>Bin Size</label><input type="range" id="histogram-bins" min="1" max="20" value="5" oninput="this.nextElementSibling.textContent=this.value+'h';chartUpdaters.histogram()"><span class="range-value">5h</span></div>
+        <div class="ctrl"><label>Bin Size</label><input type="range" id="histogram-bins" min="1" max="20" value="5" oninput="this.nextElementSibling.textContent=this.value+'d';chartUpdaters.histogram()"><span class="range-value">5d</span></div>
         <label class="ctrl-toggle"><input type="checkbox" id="histogram-split" onchange="chartUpdaters.histogram()"> Split by Module</label>
         <label class="ctrl-toggle"><input type="checkbox" id="histogram-mean" checked onchange="chartUpdaters.histogram()"> Mean Line</label>
         <label class="ctrl-toggle"><input type="checkbox" id="histogram-median" onchange="chartUpdaters.histogram()"> Median Line</label>
@@ -294,7 +294,7 @@
     </div>
     <!-- 14. CDF -->
     <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">14</span> Cumulative Distribution (CDF)</h3><span class="panel-badge">Statistical</span></div>
+      <div class="panel-header"><h3><span class="panel-number">14</span> Cumulative Distribution (CDF) — Completion Time</h3><span class="panel-badge">Statistical</span></div>
       <div class="panel-controls">
         <label class="ctrl-toggle"><input type="checkbox" id="cdf-module" onchange="chartUpdaters.cdf()"> Per Module</label>
         <label class="ctrl-toggle"><input type="checkbox" id="cdf-p50" checked onchange="chartUpdaters.cdf()"> P50</label>
@@ -428,7 +428,7 @@
       <div class="panel-body"><div id="chart-25" class="chart-container"></div></div>
     </div>
     <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">28</span> Promo Completion — % who finished all modules</h3><span class="panel-badge">Campus</span></div>
+      <div class="panel-header"><h3><span class="panel-number">28</span> Promo Completion — % who finished all modules (New Common Core)</h3><span class="panel-badge">Campus</span></div>
       <div class="panel-body"><div id="chart-28" class="chart-container"></div></div>
     </div>
     <div class="panel">
