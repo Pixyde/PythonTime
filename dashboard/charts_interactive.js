@@ -223,7 +223,27 @@ registerChart('racebar', function() {
       return { login: u.login, value: val };
     }).sort((a, b) => b.value - a.value).slice(0, numBars);
 
-    frames.push({ date, snapshot });
+    // Only add frames that have at least one non-zero value
+    if (snapshot.some(s => s.value > 0)) {
+      frames.push({ date, snapshot });
+    }
+  }
+  // Always include the last date as the final frame
+  const lastDate = dates[dates.length - 1];
+  if (!frames.length || frames[frames.length - 1].date !== lastDate) {
+    const lastSnapshot = filteredData.map(u => {
+      const completedByDate = u.python_projects.filter(p => p.end_date && dateStr(p.end_date) <= lastDate);
+      let val;
+      if (metric === 'modules') {
+        val = completedByDate.length;
+      } else {
+        val = completedByDate.reduce((s, p) => s + p.time_spent_hours, 0);
+      }
+      return { login: u.login, value: val };
+    }).sort((a, b) => b.value - a.value).slice(0, numBars);
+    if (lastSnapshot.some(s => s.value > 0)) {
+      frames.push({ date: lastDate, snapshot: lastSnapshot });
+    }
   }
 
   if (!frames.length) { el.innerHTML = '<div class="chart-empty">No animation frames</div>'; return; }
@@ -303,6 +323,10 @@ registerChart('racebar', function() {
 
   // Use Plotly.newPlot for proper animation support, then add frames
   Plotly.newPlot(el, [trace], layout, PLOTLY_CONFIG).then(function() {
-    Plotly.addFrames(el, plotlyFrames);
+    if (plotlyFrames.length > 0) {
+      Plotly.addFrames(el, plotlyFrames);
+    }
+  }).catch(function(err) {
+    console.error('Race bar chart animation error:', err);
   });
 });
