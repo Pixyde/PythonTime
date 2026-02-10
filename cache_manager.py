@@ -120,6 +120,26 @@ class CacheManager:
             # If we can't write cache, just log and continue
             print(f"Warning: Failed to write cache: {e}")
     
+    def invalidate(self, endpoint: str, params: Optional[Dict] = None):
+        """
+        Invalidate (delete) a specific cache entry
+        
+        Args:
+            endpoint: API endpoint
+            params: Query parameters
+        """
+        cache_key = self._get_cache_key(endpoint, params)
+        cache_path = self._get_cache_path(cache_key)
+        
+        if cache_path.exists():
+            try:
+                cache_path.unlink()
+                return True
+            except IOError as e:
+                print(f"Warning: Failed to invalidate cache: {e}")
+                return False
+        return False
+    
     def clear(self):
         """Clear all cached data"""
         for cache_file in self.cache_dir.glob("*.json"):

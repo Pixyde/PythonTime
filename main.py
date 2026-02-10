@@ -314,7 +314,7 @@ def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_
     return users_projects_map
 
 
-def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]], locations_map: Dict[int, List[Dict]], new_common_core_only: bool = False) -> Dict:
+def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]], locations_map: Dict[int, List[Dict]], client: 'API42Client' = None, begin_at: str = None, end_at: str = None, new_common_core_only: bool = False) -> Dict:
     """
     Process a user's data using pre-fetched project and location data
     
@@ -322,6 +322,9 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
         user_id: User ID
         projects_map: Map of user_id -> projects list
         locations_map: Map of user_id -> locations list
+        client: API client for cache validation
+        begin_at: Start date for location filtering
+        end_at: End date for location filtering
         new_common_core_only: If True, filter to only new common core modules
         
     Returns:
@@ -333,6 +336,14 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
     
     if not projects:
         return None
+    
+    # Validate cached location data and refresh if bad cache detected
+    if client and locations:
+        locations = client.validate_and_refresh_locations(
+            user_id, projects, locations, begin_at, end_at
+        )
+        # Update the map with validated locations
+        locations_map[user_id] = locations
     
     # Extract user info from first project entry
     user = projects[0].get('user', {})
@@ -618,6 +629,9 @@ def main():
                 user_id,
                 projects_map, 
                 locations_map,
+                client=client,
+                begin_at=LOCATION_BEGIN_DATE,
+                end_at=LOCATION_END_DATE,
                 new_common_core_only=USE_NEW_COMMON_CORE_ONLY
             )
             if user_data:
