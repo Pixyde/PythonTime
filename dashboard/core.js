@@ -8,6 +8,7 @@ let filteredData = [];
 let globalFilters = {
   users: [],
   modules: [],
+  campuses: [],
   status: 'all',
   validatedOnly: false,
   dateStart: '',
@@ -73,6 +74,12 @@ function getAllStatuses() {
   return [...statuses].sort();
 }
 
+function getAllCampuses() {
+  const campuses = new Set();
+  RAW_DATA.forEach(u => { if (u.campus_name) campuses.add(u.campus_name); });
+  return [...campuses].sort();
+}
+
 function flattenProjects(data) {
   const rows = [];
   data.forEach(user => {
@@ -101,6 +108,8 @@ function percentile(arr, p) {
 }
 
 function mean(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0; }
+function median(arr) { return arr.length ? percentile(arr, 50) : 0; }
+function stddev(arr) { if (arr.length < 2) return 0; const m = mean(arr); return Math.sqrt(arr.reduce((s, x) => s + (x - m) ** 2, 0) / arr.length); }
 function sum(arr) { return arr.reduce((a, b) => a + b, 0); }
 
 function dateStr(iso) {
@@ -114,6 +123,8 @@ function applyGlobalFilters() {
   filteredData = RAW_DATA.map(user => {
     // User filter
     if (globalFilters.users.length > 0 && !globalFilters.users.includes(user.login)) return null;
+    // Campus filter
+    if (globalFilters.campuses.length > 0 && !globalFilters.campuses.includes(user.campus_name)) return null;
 
     // Filter projects within user
     let projects = user.python_projects.filter(p => {
@@ -150,6 +161,7 @@ function populateGlobalFilters() {
   const users = getAllUsers();
   const modules = getAllModules();
   const statuses = getAllStatuses();
+  const campuses = getAllCampuses();
 
   // User multi-select
   const userDropdown = document.getElementById('filter-users-dropdown');
@@ -164,6 +176,14 @@ function populateGlobalFilters() {
   if (moduleDropdown) {
     moduleDropdown.innerHTML = modules.map(m =>
       `<label><input type="checkbox" value="${m}" onchange="onGlobalFilterChange()"> ${m}</label>`
+    ).join('');
+  }
+
+  // Campus multi-select
+  const campusDropdown = document.getElementById('filter-campus-dropdown');
+  if (campusDropdown) {
+    campusDropdown.innerHTML = campuses.map(c =>
+      `<label><input type="checkbox" value="${c}" onchange="onGlobalFilterChange()"> ${c}</label>`
     ).join('');
   }
 
@@ -203,6 +223,13 @@ function onGlobalFilterChange() {
   document.getElementById('filter-modules-display-text').textContent =
     globalFilters.modules.length ? `${globalFilters.modules.length} selected` : 'All Modules';
 
+  // Read campus selections
+  const campusCheckboxes = document.querySelectorAll('#filter-campus-dropdown input:checked');
+  globalFilters.campuses = [...campusCheckboxes].map(cb => cb.value);
+  const campusDisplay = document.getElementById('filter-campus-display-text');
+  if (campusDisplay) campusDisplay.textContent =
+    globalFilters.campuses.length ? `${globalFilters.campuses.length} selected` : 'All Campuses';
+
   // Read other filters
   globalFilters.status = document.getElementById('filter-status').value;
   globalFilters.validatedOnly = document.getElementById('filter-validated').checked;
@@ -217,7 +244,7 @@ function onGlobalFilterChange() {
 }
 
 function resetGlobalFilters() {
-  document.querySelectorAll('#filter-users-dropdown input, #filter-modules-dropdown input').forEach(cb => cb.checked = false);
+  document.querySelectorAll('#filter-users-dropdown input, #filter-modules-dropdown input, #filter-campus-dropdown input').forEach(cb => cb.checked = false);
   document.getElementById('filter-status').value = 'all';
   document.getElementById('filter-validated').checked = false;
   document.getElementById('filter-score-min').value = '0';
@@ -276,9 +303,11 @@ function updateHeaderStats() {
   const totalUsers = filteredData.length;
   const totalHours = filteredData.reduce((s, u) => s + u.total_python_hours, 0);
   const totalProjects = filteredData.reduce((s, u) => s + u.python_projects.length, 0);
+  const campuses = new Set(filteredData.map(u => u.campus_name).filter(Boolean));
   stats.innerHTML = `
     <span>👥 <strong>${totalUsers}</strong> Users</span>
     <span>⏱️ <strong>${formatNumber(totalHours)}</strong> Hours</span>
     <span>📦 <strong>${totalProjects}</strong> Projects</span>
+    ${campuses.size > 0 ? `<span>🏫 <strong>${campuses.size}</strong> Campus${campuses.size > 1 ? 'es' : ''}</span>` : ''}
   `;
 }

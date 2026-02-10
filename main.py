@@ -495,6 +495,7 @@ def generate_dashboard(results: List[Dict], output_file: str):
             'charts_leaderboard.js',
             'charts_advanced.js',
             'charts_interactive.js',
+            'charts_modulestats.js',
             'charts_campus.js',
         ]
         charts_js = '\n'.join(read_part(f) for f in chart_files)

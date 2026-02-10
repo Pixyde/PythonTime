@@ -22,7 +22,6 @@ registerChart('gantt', function() {
     data = data.filter(u => u.login === userSelect.value);
   }
 
-  const traces = [];
   const allRows = [];
 
   data.forEach(user => {
@@ -33,43 +32,42 @@ registerChart('gantt', function() {
     });
   });
 
+  if (!allRows.length) { el.innerHTML = '<div class="chart-empty">No projects with dates</div>'; return; }
+
   if (sortBy && sortBy.value === 'hours') {
     allRows.sort((a, b) => b.proj.time_spent_hours - a.proj.time_spent_hours);
   } else {
     allRows.sort((a, b) => a.user.localeCompare(b.user) || a.start - b.start);
   }
 
-  const yLabels = allRows.map((r, i) => `${r.user} - ${r.proj.project_name}`);
-  const starts = allRows.map(r => r.start);
-  const ends = allRows.map(r => r.end);
-  const durations = allRows.map(r => r.end - r.start);
-  const colors = allRows.map(r => {
-    if (colorBy && colorBy.value === 'status') return STATUS_COLORS[r.proj.status] || '#8e8e8e';
-    return COLORS.palette[yLabels.indexOf(`${r.user} - ${r.proj.project_name}`) % COLORS.palette.length];
-  });
-  const texts = allRows.map(r => `${r.user}: ${r.proj.project_name}<br>${r.proj.time_spent_hours}h | ${r.proj.status}`);
-
-  traces.push({
-    type: 'bar',
-    orientation: 'h',
-    y: yLabels.map((_, i) => i),
-    x: durations.map(d => d / (1000 * 3600)),
-    base: starts.map(s => s.toISOString()),
-    marker: { color: colors },
-    text: showNames?.checked ? allRows.map(r => r.proj.project_name) : [],
-    textposition: 'inside',
-    textfont: { size: 9, color: '#fff' },
-    hovertext: texts,
-    hoverinfo: 'text'
+  // Use one scatter trace per row to draw horizontal bars (reliable Gantt)
+  const traces = allRows.map((r, i) => {
+    const yLabel = `${r.user} - ${r.proj.project_name}`;
+    const color = (colorBy && colorBy.value === 'status')
+      ? (STATUS_COLORS[r.proj.status] || '#8e8e8e')
+      : COLORS.palette[i % COLORS.palette.length];
+    return {
+      type: 'scatter',
+      mode: 'lines',
+      x: [r.start.toISOString(), r.end.toISOString()],
+      y: [yLabel, yLabel],
+      line: { color: color, width: 16 },
+      hovertext: `${r.user}: ${r.proj.project_name}<br>${r.proj.time_spent_hours.toFixed(1)}h | ${r.proj.status}`,
+      hoverinfo: 'text',
+      showlegend: false,
+      text: showNames?.checked ? [r.proj.project_name, ''] : undefined,
+      textposition: 'middle center',
+      textfont: { size: 9, color: '#fff' }
+    };
   });
 
+  const yLabels = allRows.map(r => `${r.user} - ${r.proj.project_name}`);
   const layout = {
     ...PLOTLY_LAYOUT_DEFAULTS,
-    margin: { t: 10, r: 20, b: 40, l: 180 },
+    margin: { t: 10, r: 20, b: 40, l: 200 },
     xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, type: 'date', title: 'Date' },
-    yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, tickvals: yLabels.map((_, i) => i), ticktext: yLabels, autorange: 'reversed' },
-    height: Math.max(350, allRows.length * 22 + 60),
-    bargap: 0.3
+    yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, categoryorder: 'array', categoryarray: [...yLabels].reverse(), type: 'category' },
+    height: Math.max(350, allRows.length * 28 + 60)
   };
 
   Plotly.react(el, traces, layout, PLOTLY_CONFIG);

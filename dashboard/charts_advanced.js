@@ -63,7 +63,7 @@ registerChart('treemap', function() {
     texttemplate: '%{label}<br>%{value:.1f}h',
     textfont: { size: 10 },
     hovertemplate: '%{label}<br>%{value:.1f} hours<extra></extra>',
-    branchvalues: 'total'
+    branchvalues: 'remainder'
   };
 
   const layout = {
@@ -129,7 +129,7 @@ registerChart('sunburst', function() {
     marker: { colors: markerColors, line: { width: 1, color: '#2c3038' } },
     textinfo: showPct ? 'label+percent entry' : 'label',
     hovertemplate: '%{label}<br>%{value:.1f}h<br>%{percentEntry:.1%}<extra></extra>',
-    branchvalues: 'total',
+    branchvalues: 'remainder',
     insidetextorientation: 'radial'
   };
 
