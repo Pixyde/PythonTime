@@ -409,7 +409,7 @@
 <div class="section" data-section="campus">
   <div class="section-title">🏫 Campus Comparison</div>
   <div class="panel-controls" style="margin-bottom:12px">
-    <div class="ctrl"><label>Campuses to Compare</label><input type="text" class="select-search" placeholder="Search..." oninput="filterSelectOptions(this,'campus-select')"><select id="campus-select" multiple onchange="updateCampusSection()"></select></div>
+    <div class="ctrl"><label>Campuses to Compare</label><input type="text" class="select-search" placeholder="Search..." oninput="filterSelectOptions(this,'campus-select')"><div class="dropdown-actions"><button onclick="selectAllOptions('campus-select')">Select All</button><button onclick="deselectAllOptions('campus-select')">Deselect All</button></div><select id="campus-select" multiple onchange="updateCampusSection()"></select></div>
   </div>
   <div class="grid grid-full">
     <div class="panel">
@@ -424,6 +424,7 @@
           <option value="total_hours">Total Hours</option>
           <option value="efficiency">Efficiency</option>
           <option value="projects_per_user">Avg Projects/User</option>
+          <option value="avg_completion_time">Avg Completion Time (days)</option>
           <option value="radar">Radar Overview</option>
         </select></div>
         <label class="ctrl-toggle"><input type="checkbox" id="campus-show-all" checked onchange="chartUpdaters.campus()"> Show Global Average</label>

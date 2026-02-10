@@ -129,10 +129,10 @@ class API42Client:
         
         all_items = []
         page = 1
-        params["page[size]"] = 100  # Max items per page
+        params["per_page"] = 100  # Max items per page
         
         while True:
-            params["page[number]"] = page
+            params["page"] = page
             # Don't use cache for individual pages, we cache the full result
             data = self._make_request(endpoint, params, use_cache=False)
             

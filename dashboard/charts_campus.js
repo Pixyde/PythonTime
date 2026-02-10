@@ -78,7 +78,19 @@ registerChart('campus', function() {
       avgProjectsPerUser: users.length ? allProjects.length / users.length : 0,
       efficiency: users.length && users.reduce((s, u) => s + u.total_python_hours, 0) > 0
         ? allProjects.length / (users.reduce((s, u) => s + u.total_python_hours, 0) / users.length)
-        : 0
+        : 0,
+      avgCompletionTime: (function() {
+        const days = [];
+        users.forEach(u => {
+          const starts = u.python_projects.map(p => p.start_date).filter(Boolean).map(d => new Date(d));
+          const ends = u.python_projects.map(p => p.end_date).filter(Boolean).map(d => new Date(d));
+          if (starts.length && ends.length) {
+            const d = (Math.max(...ends) - Math.min(...starts)) / MS_PER_DAY;
+            if (d > 0) days.push(d);
+          }
+        });
+        return days.length ? mean(days) : 0;
+      })()
     };
   });
 
@@ -89,7 +101,8 @@ registerChart('campus', function() {
     completionRate: mean(campusStats.map(c => c.completionRate)),
     validationRate: mean(campusStats.map(c => c.validationRate)),
     avgProjectsPerUser: mean(campusStats.map(c => c.avgProjectsPerUser)),
-    efficiency: mean(campusStats.map(c => c.efficiency))
+    efficiency: mean(campusStats.map(c => c.efficiency)),
+    avgCompletionTime: mean(campusStats.map(c => c.avgCompletionTime))
   };
 
   // Build chart based on metric
@@ -152,7 +165,8 @@ registerChart('campus', function() {
     'users': { key: 'userCount', label: 'Number of Users' },
     'total_hours': { key: 'totalHours', label: 'Total Hours' },
     'efficiency': { key: 'efficiency', label: 'Efficiency (proj/hour)' },
-    'projects_per_user': { key: 'avgProjectsPerUser', label: 'Avg Projects per User' }
+    'projects_per_user': { key: 'avgProjectsPerUser', label: 'Avg Projects per User' },
+    'avg_completion_time': { key: 'avgCompletionTime', label: 'Avg Completion Time (days)' }
   };
 
   const m = metricMap[metric] || metricMap['avg_hours'];

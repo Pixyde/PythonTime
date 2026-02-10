@@ -222,6 +222,7 @@ function populateGlobalFilters() {
   const userDropdown = document.getElementById('filter-users-dropdown');
   if (userDropdown) {
     userDropdown.innerHTML = '<input type="text" class="dropdown-search" placeholder="Search users..." oninput="filterDropdownItems(this)" onclick="event.stopPropagation()">' +
+      '<div class="dropdown-actions" onclick="event.stopPropagation()"><button onclick="selectAllDropdown(\'filter-users-dropdown\')">Select All</button><button onclick="deselectAllDropdown(\'filter-users-dropdown\')">Deselect All</button></div>' +
       users.map(u =>
       `<label><input type="checkbox" value="${u}" onchange="onGlobalFilterChange()"> ${u}</label>`
     ).join('');
@@ -231,6 +232,7 @@ function populateGlobalFilters() {
   const moduleDropdown = document.getElementById('filter-modules-dropdown');
   if (moduleDropdown) {
     moduleDropdown.innerHTML = '<input type="text" class="dropdown-search" placeholder="Search modules..." oninput="filterDropdownItems(this)" onclick="event.stopPropagation()">' +
+      '<div class="dropdown-actions" onclick="event.stopPropagation()"><button onclick="selectAllDropdown(\'filter-modules-dropdown\')">Select All</button><button onclick="deselectAllDropdown(\'filter-modules-dropdown\')">Deselect All</button></div>' +
       modules.map(m =>
       `<label><input type="checkbox" value="${m}" onchange="onGlobalFilterChange()"> ${m}</label>`
     ).join('');
@@ -240,6 +242,7 @@ function populateGlobalFilters() {
   const campusDropdown = document.getElementById('filter-campus-dropdown');
   if (campusDropdown) {
     campusDropdown.innerHTML = '<input type="text" class="dropdown-search" placeholder="Search campuses..." oninput="filterDropdownItems(this)" onclick="event.stopPropagation()">' +
+      '<div class="dropdown-actions" onclick="event.stopPropagation()"><button onclick="selectAllDropdown(\'filter-campus-dropdown\')">Select All</button><button onclick="deselectAllDropdown(\'filter-campus-dropdown\')">Deselect All</button></div>' +
       campuses.map(c =>
       `<label><input type="checkbox" value="${c}" onchange="onGlobalFilterChange()"> ${c}</label>`
     ).join('');
@@ -351,6 +354,35 @@ function filterSelectOptions(inputEl, selectId) {
     // For hidden options in <select>, we need to also toggle the hidden attribute
     opt.hidden = !match;
   });
+}
+
+// ---- SELECT ALL / DESELECT ALL ----
+function selectAllDropdown(dropdownId) {
+  const dropdown = document.getElementById(dropdownId);
+  if (!dropdown) return;
+  dropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+  onGlobalFilterChange();
+}
+
+function deselectAllDropdown(dropdownId) {
+  const dropdown = document.getElementById(dropdownId);
+  if (!dropdown) return;
+  dropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+  onGlobalFilterChange();
+}
+
+function selectAllOptions(selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  [...sel.options].forEach(opt => { opt.selected = true; });
+  sel.dispatchEvent(new Event('change'));
+}
+
+function deselectAllOptions(selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  [...sel.options].forEach(opt => { opt.selected = false; });
+  sel.dispatchEvent(new Event('change'));
 }
 
 // ---- NAVIGATION ----
