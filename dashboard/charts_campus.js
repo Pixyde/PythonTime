@@ -367,10 +367,11 @@ registerChart('campusmodule', function() {
     };
   });
 
-  // Global average line
+  // Global average line (scoped to selected campuses)
+  const selectedUsers = filteredData.filter(u => selectedCampuses.includes(u.campus_name || 'Unknown'));
   const globalValues = modules.map(mod => {
     const values = [];
-    filteredData.forEach(u => {
+    selectedUsers.forEach(u => {
       u.python_projects.forEach(p => {
         if (p.project_name === mod) {
           if (metricSel === 'avg_mark' || metricSel === 'median_mark') {
@@ -382,11 +383,11 @@ registerChart('campusmodule', function() {
       });
     });
     if (!values.length) return 0;
-    return mean(values);
+    return (metricSel === 'median_hours' || metricSel === 'median_mark') ? median(values) : mean(values);
   });
   // Global total across all modules
   const globalAllValues = [];
-  filteredData.forEach(u => {
+  selectedUsers.forEach(u => {
     u.python_projects.forEach(p => {
       if (metricSel === 'avg_mark' || metricSel === 'median_mark') {
         if (p.final_mark !== null && p.final_mark !== undefined) globalAllValues.push(p.final_mark);
@@ -395,7 +396,7 @@ registerChart('campusmodule', function() {
       }
     });
   });
-  const globalTotal = globalAllValues.length ? mean(globalAllValues) : 0;
+  const globalTotal = globalAllValues.length ? ((metricSel === 'median_hours' || metricSel === 'median_mark') ? median(globalAllValues) : mean(globalAllValues)) : 0;
 
   traces.push({
     type: 'scatter', mode: 'lines+markers', name: '⊕ Global Avg',
