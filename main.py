@@ -292,8 +292,15 @@ def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_
             for project_user in project_users:
                 user = project_user.get('user', {})
                 user_id = user.get('id')
+                login = user.get('login', '')
                 
                 if user_id:
+                    # Skip staff/admin accounts
+                    if user.get('staff?', False):
+                        continue
+                    # Skip excluded users early
+                    if login in EXCLUDED_USERS:
+                        continue
                     # Apply campus filter if provided
                     if campus_user_ids is not None and user_id not in campus_user_ids:
                         continue
@@ -592,17 +599,8 @@ def main():
             print("\n✗ No users found working on Python projects")
             return
         
-        # Step 3: Fetch locations only for users who have Python projects
-        python_users = list(projects_map.keys())
-        print(f"\nFetching locations for {len(python_users)} users with Python projects...")
-        locations_map = client.get_locations_by_user_map(
-            python_users,
-            begin_at=LOCATION_BEGIN_DATE,
-            end_at=LOCATION_END_DATE
-        )
-        
         print("\n" + "=" * 60)
-        print("PROCESSING USERS")
+        print("PRE-FILTERING USERS")
         if USE_NEW_COMMON_CORE_ONLY:
             print("(Filtering for NEW COMMON CORE Python modules only)")
         print("=" * 60)
@@ -644,17 +642,44 @@ def main():
             mapped = len(user_campus_map)
             print(f"✓ Mapped {mapped}/{len(projects_map)} users to campuses")
         
-        # Process users who have Python projects
+        # Pre-filter: only keep users who will appear in final results
+        # This avoids fetching locations for users who would be discarded
+        original_count = len(projects_map)
+        filtered_user_ids = []
+        for user_id in list(projects_map.keys()):
+            # Skip users not in promo year roster
+            if PROMO_YEAR and user_id not in user_campus_map:
+                continue
+            # Skip users with no new common core projects after filtering
+            if USE_NEW_COMMON_CORE_ONLY:
+                user_projects = projects_map.get(user_id, [])
+                filtered = DataProcessor.filter_python_projects(user_projects, new_common_core_only=True)
+                if not filtered:
+                    continue
+            filtered_user_ids.append(user_id)
+        
+        print(f"✓ Pre-filtered: {len(filtered_user_ids)}/{original_count} users have relevant Python modules")
+        
+        # Step 3: Fetch locations only for pre-filtered users
+        print(f"\nFetching locations for {len(filtered_user_ids)} users...")
+        locations_map = client.get_locations_by_user_map(
+            filtered_user_ids,
+            begin_at=LOCATION_BEGIN_DATE,
+            end_at=LOCATION_END_DATE
+        )
+        
+        print("\n" + "=" * 60)
+        print("PROCESSING USERS")
+        print("=" * 60)
+        
+        # Process pre-filtered users
         results = []
         zero_logtime_retries = 0
-        for i, user_id in enumerate(projects_map.keys(), 1):
+        for i, user_id in enumerate(filtered_user_ids, 1):
             # Determine campus from map
             if user_id in user_campus_map:
                 c_name, c_id = user_campus_map[user_id]
             else:
-                # Skip users not in promo year roster when filtering by promo year
-                if PROMO_YEAR:
-                    continue
                 c_name = 'Not Found'
                 c_id = None
 
@@ -713,7 +738,7 @@ def main():
         
         print("\n" + "=" * 60)
         print(f"Analysis complete!")
-        print(f"Total users processed: {len(projects_map)}")
+        print(f"Total users processed: {len(filtered_user_ids)}")
         print(f"Users with Python projects: {len(results)}")
         if USE_NEW_COMMON_CORE_ONLY:
             print(f"(Filtered for NEW COMMON CORE modules only)")
