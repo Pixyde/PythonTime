@@ -244,6 +244,11 @@ def get_all_project_types(client: API42Client, cursus_id: int = 21) -> Dict[str,
     return project_types
 
 
+def extract_user_ids(cursus_users: List[Dict]) -> set:
+    """Extract unique user IDs from a list of cursus_user records."""
+    return set(cu.get('user', {}).get('id') for cu in cursus_users if cu.get('user', {}).get('id'))
+
+
 def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_id: int = None, promo_year: int = None) -> Dict[int, List[Dict]]:
     """
     Fetch users who worked on Python projects (project-based approach)
@@ -266,7 +271,7 @@ def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_
         # Get campus users to filter by
         print(f"Fetching campus users for filtering...")
         cursus_users = client.get_campus_users(campus_id, MAIN_CURSUS_ID, begin_year=promo_year)
-        campus_user_ids = set(cu.get('user', {}).get('id') for cu in cursus_users if cu.get('user', {}).get('id'))
+        campus_user_ids = extract_user_ids(cursus_users)
         print(f"✓ Found {len(campus_user_ids)} users in campus {campus_id}")
     else:
         print("(No campus filtering - analyzing all users globally)")
@@ -613,7 +618,7 @@ def main():
                 user_campus_map[uid] = (selected_campus_name, selected_campus_id)
             # Track promo totals (same API call as fetch_users_by_projects, cached)
             promo_users = client.get_campus_users(selected_campus_id, MAIN_CURSUS_ID, begin_year=PROMO_YEAR)
-            promo_ids = set(cu.get('user', {}).get('id') for cu in promo_users if cu.get('user', {}).get('id'))
+            promo_ids = extract_user_ids(promo_users)
             metadata['total_promo_users'] = len(promo_ids)
             if selected_campus_name:
                 metadata['campus_promo_totals'][selected_campus_name] = len(promo_ids)
@@ -629,11 +634,8 @@ def main():
                     continue
                 cursus_users = client.get_campus_users(cid, MAIN_CURSUS_ID, begin_year=PROMO_YEAR)
                 # Track total promo users per campus
-                campus_all_ids = set()
-                for cu in cursus_users:
-                    uid = cu.get('user', {}).get('id')
-                    if uid:
-                        campus_all_ids.add(uid)
+                campus_all_ids = extract_user_ids(cursus_users)
+                for uid in campus_all_ids:
                         if uid in user_ids_set and uid not in user_campus_map:
                             user_campus_map[uid] = (cname, cid)
                 if campus_all_ids:
