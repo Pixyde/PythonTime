@@ -22,6 +22,10 @@ EXCLUDED_USERS = ['suske', 'wkrati']
 # New Common Core - Filter for only new common core modules
 USE_NEW_COMMON_CORE_ONLY = True  # Set to True to filter only new common core modules
 
+# Promo year filter — only include users whose cursus begin_at is in this year
+# Set to None to include all years
+PROMO_YEAR = 2025
+
 # Date range for location data (reduces API response size)
 # Set to None to fetch all location history
 # Example: LOCATION_BEGIN_DATE = "2024-01-01T00:00:00Z"
@@ -240,26 +244,28 @@ def get_all_project_types(client: API42Client, cursus_id: int = 21) -> Dict[str,
     return project_types
 
 
-def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_id: int = None) -> Dict[int, List[Dict]]:
+def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_id: int = None, promo_year: int = None) -> Dict[int, List[Dict]]:
     """
     Fetch users who worked on Python projects (project-based approach)
     
     Optionally filters by campus if campus_id is provided.
+    When promo_year is set, the campus roster is filtered to that year.
     
     Args:
         client: API client instance
         project_ids: List of Python project IDs
         campus_id: Optional campus ID to filter users by
+        promo_year: Optional year to filter campus roster by begin_at
         
     Returns:
         Dictionary mapping user_id -> list of their Python projects
     """
     print(f"\nFetching users for {len(project_ids)} Python projects...")
     if campus_id:
-        print(f"(Will filter to campus ID: {campus_id})")
+        print(f"(Will filter to campus ID: {campus_id}{f', promo {promo_year}' if promo_year else ''})")
         # Get campus users to filter by
         print(f"Fetching campus users for filtering...")
-        cursus_users = client.get_campus_users(campus_id, MAIN_CURSUS_ID)
+        cursus_users = client.get_campus_users(campus_id, MAIN_CURSUS_ID, begin_year=promo_year)
         campus_user_ids = set(cu.get('user', {}).get('id') for cu in cursus_users if cu.get('user', {}).get('id'))
         print(f"✓ Found {len(campus_user_ids)} users in campus {campus_id}")
     else:
@@ -464,7 +470,7 @@ def display_statistics(results: List[Dict], stats: Dict):
                   f"[{project['status']}] Mark: {project['final_mark']}")
 
 
-def generate_dashboard(results: List[Dict], output_file: str):
+def generate_dashboard(results: List[Dict], output_file: str, metadata: Dict = None):
     """
     Generate an interactive HTML dashboard from results.
 
@@ -476,6 +482,7 @@ def generate_dashboard(results: List[Dict], output_file: str):
     Args:
         results: List of user data dictionaries
         output_file: Path to save the dashboard HTML file
+        metadata: Optional metadata dict (promo totals, etc.)
     """
     print("\n📊 Generating interactive dashboard...")
 
@@ -505,6 +512,7 @@ def generate_dashboard(results: List[Dict], output_file: str):
 
         # Convert results to JSON
         data_json = json.dumps(results, indent=2)
+        metadata_json = json.dumps(metadata or {}, indent=2)
 
         # Assemble dashboard: inject CSS, JS, and data into the template
         html = template
@@ -512,6 +520,7 @@ def generate_dashboard(results: List[Dict], output_file: str):
         html = html.replace('{{CORE_JS}}', core_js)
         html = html.replace('{{CHARTS_JS}}', charts_js)
         html = html.replace('{{DATA_PLACEHOLDER}}', data_json)
+        html = html.replace('{{METADATA_PLACEHOLDER}}', metadata_json)
 
         # Save dashboard
         dashboard_file = output_file.replace('.json', '_dashboard.html')
@@ -572,7 +581,7 @@ def main():
             return
         
         # Step 2: Fetch users from each Python project (with optional campus filtering)
-        projects_map = fetch_users_by_projects(client, python_project_ids, selected_campus_id)
+        projects_map = fetch_users_by_projects(client, python_project_ids, selected_campus_id, promo_year=PROMO_YEAR)
         
         if not projects_map:
             print("\n✗ No users found working on Python projects")
@@ -597,10 +606,17 @@ def main():
         # When a campus is selected, all users belong to that campus.
         # When ALL is selected, resolve via get_campus_users (one call per campus, cached).
         user_campus_map = {}
+        metadata = {'promo_year': PROMO_YEAR, 'total_promo_users': 0, 'campus_promo_totals': {}}
         if selected_campus_id:
             # Single campus — all users in projects_map belong to it
             for uid in projects_map:
                 user_campus_map[uid] = (selected_campus_name, selected_campus_id)
+            # Track promo totals (same API call as fetch_users_by_projects, cached)
+            promo_users = client.get_campus_users(selected_campus_id, MAIN_CURSUS_ID, begin_year=PROMO_YEAR)
+            promo_ids = set(cu.get('user', {}).get('id') for cu in promo_users if cu.get('user', {}).get('id'))
+            metadata['total_promo_users'] = len(promo_ids)
+            if selected_campus_name:
+                metadata['campus_promo_totals'][selected_campus_name] = len(promo_ids)
         else:
             # No campus filter — resolve by iterating campuses
             print("\nResolving campus info from campus rosters...")
@@ -611,11 +627,18 @@ def main():
                 cname = campus.get('name')
                 if not cid or not cname:
                     continue
-                cursus_users = client.get_campus_users(cid, MAIN_CURSUS_ID)
+                cursus_users = client.get_campus_users(cid, MAIN_CURSUS_ID, begin_year=PROMO_YEAR)
+                # Track total promo users per campus
+                campus_all_ids = set()
                 for cu in cursus_users:
                     uid = cu.get('user', {}).get('id')
-                    if uid and uid in user_ids_set and uid not in user_campus_map:
-                        user_campus_map[uid] = (cname, cid)
+                    if uid:
+                        campus_all_ids.add(uid)
+                        if uid in user_ids_set and uid not in user_campus_map:
+                            user_campus_map[uid] = (cname, cid)
+                if campus_all_ids:
+                    metadata['campus_promo_totals'][cname] = len(campus_all_ids)
+            metadata['total_promo_users'] = sum(metadata['campus_promo_totals'].values())
             mapped = len(user_campus_map)
             print(f"✓ Mapped {mapped}/{len(projects_map)} users to campuses")
         
@@ -627,6 +650,9 @@ def main():
             if user_id in user_campus_map:
                 c_name, c_id = user_campus_map[user_id]
             else:
+                # Skip users not in promo year roster when filtering by promo year
+                if PROMO_YEAR:
+                    continue
                 c_name = 'Not Found'
                 c_id = None
 
@@ -698,7 +724,7 @@ def main():
             
             # Generate interactive dashboard
             try:
-                generate_dashboard(results, output_file)
+                generate_dashboard(results, output_file, metadata)
             except Exception as e:
                 print(f"\n⚠️  Could not generate dashboard: {e}")
         

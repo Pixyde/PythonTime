@@ -4,6 +4,7 @@
 
 // ---- GLOBAL STATE ----
 const RAW_DATA = {{DATA_PLACEHOLDER}};
+const METADATA = {{METADATA_PLACEHOLDER}};
 let filteredData = [];
 
 // Users to always exclude from all calculations

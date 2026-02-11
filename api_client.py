@@ -171,7 +171,7 @@ class API42Client:
         print(f"✓ Found {len(campuses)} campuses")
         return campuses
     
-    def get_campus_users(self, campus_id: int, cursus_id: int = 21) -> List[Dict]:
+    def get_campus_users(self, campus_id: int, cursus_id: int = 21, begin_year: int = None) -> List[Dict]:
         """
         Get all users from a specific campus and cursus
         
@@ -180,11 +180,12 @@ class API42Client:
         Args:
             campus_id: Campus ID (e.g., Havre campus)
             cursus_id: Cursus ID (21 is typically the main 42 cursus)
+            begin_year: Optional year to filter by cursus begin_at (e.g., 2025 for promo 2025)
             
         Returns:
             List of cursus_user dictionaries with user and cursus information
         """
-        print(f"Fetching users from campus {campus_id} (cursus {cursus_id})...")
+        print(f"Fetching users from campus {campus_id} (cursus {cursus_id}){f' promo {begin_year}' if begin_year else ''}...")
         
         # Use cursus_users endpoint with campus and cursus filters
         # This ensures we get the cursus-specific data populated
@@ -192,6 +193,8 @@ class API42Client:
             "filter[campus_id]": campus_id,
             "filter[cursus_id]": cursus_id,
         }
+        if begin_year:
+            params["range[begin_at]"] = f"{begin_year}-01-01T00:00:00.000Z,{begin_year}-12-31T23:59:59.999Z"
         cursus_users = self._make_paginated_request("/v2/cursus_users", params)
         
         print(f"✓ Found {len(cursus_users)} users in cursus {cursus_id}")

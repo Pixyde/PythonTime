@@ -53,6 +53,12 @@ registerChart('kpi', function() {
   });
   const avgAllDoneDays = allDoneDays.length ? mean(allDoneDays) : 0;
 
+  // Promo metrics from metadata (total promo users vs Python users)
+  const totalPromoUsers = METADATA.total_promo_users || 0;
+  const noPythonActivity = totalPromoUsers > 0 ? totalPromoUsers - activeUsers : 0;
+  const noPythonPct = totalPromoUsers > 0 ? (noPythonActivity / totalPromoUsers * 100) : 0;
+  const promoYear = METADATA.promo_year || '';
+
   const kpis = [
     { label: 'Total Hours', value: formatNumber(totalHours), icon: '⏱️', color: COLORS.primary },
     { label: 'Active Users', value: activeUsers, icon: '👥', color: COLORS.cyan },
@@ -64,6 +70,14 @@ registerChart('kpi', function() {
     { label: 'Validation Rate', value: validationRate.toFixed(0) + '%', icon: '🏆', color: COLORS.orange },
     { label: 'Total Projects', value: allProjects.length, icon: '📦', color: COLORS.red },
   ];
+
+  // Add promo metrics only when metadata is available
+  if (totalPromoUsers > 0) {
+    kpis.push(
+      { label: `Total Promo${promoYear ? ' ' + promoYear : ''} Users`, value: totalPromoUsers, icon: '🏫', color: COLORS.cyan },
+      { label: 'No Python Activity', value: `${noPythonPct.toFixed(0)}% (${noPythonActivity})`, icon: '⏳', color: COLORS.red }
+    );
+  }
 
   el.innerHTML = '<div class="kpi-grid">' + kpis.map(kpi => `
     <div class="kpi-card">
