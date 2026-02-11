@@ -680,6 +680,7 @@ def main():
             if user_id in user_campus_map:
                 c_name, c_id = user_campus_map[user_id]
             else:
+                # Reachable only when PROMO_YEAR is None (no promo filtering)
                 c_name = 'Not Found'
                 c_id = None
 
