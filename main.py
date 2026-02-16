@@ -16,8 +16,15 @@ from data_processor import DataProcessor
 # Cursus ID for 42 cursus
 MAIN_CURSUS_ID = 21
 
+# Users to exclude from all data collection and analysis
+EXCLUDED_USERS = ['suske', 'wkrati']
+
 # New Common Core - Filter for only new common core modules
 USE_NEW_COMMON_CORE_ONLY = True  # Set to True to filter only new common core modules
+
+# Promo year filter — only include users whose cursus begin_at is in this year
+# Set to None to include all years
+PROMO_YEAR = 2025
 
 # Date range for location data (reduces API response size)
 # Set to None to fetch all location history
@@ -237,27 +244,34 @@ def get_all_project_types(client: API42Client, cursus_id: int = 21) -> Dict[str,
     return project_types
 
 
-def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_id: int = None) -> Dict[int, List[Dict]]:
+def extract_user_ids(cursus_users: List[Dict]) -> set:
+    """Extract unique user IDs from a list of cursus_user records."""
+    return set(cu.get('user', {}).get('id') for cu in cursus_users if cu.get('user', {}).get('id'))
+
+
+def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_id: int = None, promo_year: int = None) -> Dict[int, List[Dict]]:
     """
     Fetch users who worked on Python projects (project-based approach)
     
     Optionally filters by campus if campus_id is provided.
+    When promo_year is set, the campus roster is filtered to that year.
     
     Args:
         client: API client instance
         project_ids: List of Python project IDs
         campus_id: Optional campus ID to filter users by
+        promo_year: Optional year to filter campus roster by begin_at
         
     Returns:
         Dictionary mapping user_id -> list of their Python projects
     """
     print(f"\nFetching users for {len(project_ids)} Python projects...")
     if campus_id:
-        print(f"(Will filter to campus ID: {campus_id})")
+        print(f"(Will filter to campus ID: {campus_id}{f', promo {promo_year}' if promo_year else ''})")
         # Get campus users to filter by
         print(f"Fetching campus users for filtering...")
-        cursus_users = client.get_campus_users(campus_id, MAIN_CURSUS_ID)
-        campus_user_ids = set(cu.get('user', {}).get('id') for cu in cursus_users if cu.get('user', {}).get('id'))
+        cursus_users = client.get_campus_users(campus_id, MAIN_CURSUS_ID, begin_year=promo_year)
+        campus_user_ids = extract_user_ids(cursus_users)
         print(f"✓ Found {len(campus_user_ids)} users in campus {campus_id}")
     else:
         print("(No campus filtering - analyzing all users globally)")
@@ -278,8 +292,15 @@ def fetch_users_by_projects(client: API42Client, project_ids: List[int], campus_
             for project_user in project_users:
                 user = project_user.get('user', {})
                 user_id = user.get('id')
+                login = user.get('login', '')
                 
                 if user_id:
+                    # Skip staff/admin accounts
+                    if user.get('staff?', False):
+                        continue
+                    # Skip excluded users early
+                    if login in EXCLUDED_USERS:
+                        continue
                     # Apply campus filter if provided
                     if campus_user_ids is not None and user_id not in campus_user_ids:
                         continue
@@ -323,6 +344,10 @@ def process_user_from_projects(user_id: int, projects_map: Dict[int, List[Dict]]
     user = projects[0].get('user', {})
     login = user.get('login', 'unknown')
     email = user.get('email', '')
+    
+    # Skip excluded users
+    if login in EXCLUDED_USERS:
+        return None
     
     # Filter to Python projects (optionally only new common core)
     python_projects = DataProcessor.filter_python_projects(projects, new_common_core_only=new_common_core_only)
@@ -457,7 +482,7 @@ def display_statistics(results: List[Dict], stats: Dict):
                   f"[{project['status']}] Mark: {project['final_mark']}")
 
 
-def generate_dashboard(results: List[Dict], output_file: str):
+def generate_dashboard(results: List[Dict], output_file: str, metadata: Dict = None):
     """
     Generate an interactive HTML dashboard from results.
 
@@ -469,6 +494,7 @@ def generate_dashboard(results: List[Dict], output_file: str):
     Args:
         results: List of user data dictionaries
         output_file: Path to save the dashboard HTML file
+        metadata: Optional metadata dict (promo totals, etc.)
     """
     print("\n📊 Generating interactive dashboard...")
 
@@ -487,13 +513,9 @@ def generate_dashboard(results: List[Dict], output_file: str):
 
         # Read all chart modules in order
         chart_files = [
-            'charts_timeline.js',
-            'charts_comparison.js',
-            'charts_performance.js',
             'charts_flow.js',
             'charts_statistical.js',
             'charts_leaderboard.js',
-            'charts_advanced.js',
             'charts_interactive.js',
             'charts_modulestats.js',
             'charts_campus.js',
@@ -502,6 +524,7 @@ def generate_dashboard(results: List[Dict], output_file: str):
 
         # Convert results to JSON
         data_json = json.dumps(results, indent=2)
+        metadata_json = json.dumps(metadata or {}, indent=2)
 
         # Assemble dashboard: inject CSS, JS, and data into the template
         html = template
@@ -509,6 +532,7 @@ def generate_dashboard(results: List[Dict], output_file: str):
         html = html.replace('{{CORE_JS}}', core_js)
         html = html.replace('{{CHARTS_JS}}', charts_js)
         html = html.replace('{{DATA_PLACEHOLDER}}', data_json)
+        html = html.replace('{{METADATA_PLACEHOLDER}}', metadata_json)
 
         # Save dashboard
         dashboard_file = output_file.replace('.json', '_dashboard.html')
@@ -569,38 +593,104 @@ def main():
             return
         
         # Step 2: Fetch users from each Python project (with optional campus filtering)
-        projects_map = fetch_users_by_projects(client, python_project_ids, selected_campus_id)
+        projects_map = fetch_users_by_projects(client, python_project_ids, selected_campus_id, promo_year=PROMO_YEAR)
         
         if not projects_map:
             print("\n✗ No users found working on Python projects")
             return
         
-        # Step 3: Fetch locations only for users who have Python projects
-        python_users = list(projects_map.keys())
-        print(f"\nFetching locations for {len(python_users)} users with Python projects...")
+        print("\n" + "=" * 60)
+        print("PRE-FILTERING USERS")
+        if USE_NEW_COMMON_CORE_ONLY:
+            print("(Filtering for NEW COMMON CORE Python modules only)")
+        print("=" * 60)
+        
+        # Build user -> campus mapping from existing campus data (no extra API calls)
+        # When a campus is selected, all users belong to that campus.
+        # When ALL is selected, resolve via get_campus_users (one call per campus, cached).
+        user_campus_map = {}
+        metadata = {'promo_year': PROMO_YEAR, 'total_promo_users': 0, 'campus_promo_totals': {}}
+        if selected_campus_id:
+            # Single campus — all users in projects_map belong to it
+            for uid in projects_map:
+                user_campus_map[uid] = (selected_campus_name, selected_campus_id)
+            # Track promo totals (same API call as fetch_users_by_projects, cached)
+            promo_users = client.get_campus_users(selected_campus_id, MAIN_CURSUS_ID, begin_year=PROMO_YEAR)
+            promo_ids = extract_user_ids(promo_users)
+            metadata['total_promo_users'] = len(promo_ids)
+            if selected_campus_name:
+                metadata['campus_promo_totals'][selected_campus_name] = len(promo_ids)
+        else:
+            # No campus filter — resolve by iterating campuses
+            print("\nResolving campus info from campus rosters...")
+            user_ids_set = set(projects_map.keys())
+            campuses = client.get_campuses()
+            for campus in campuses:
+                cid = campus.get('id')
+                cname = campus.get('name')
+                if not cid or not cname:
+                    continue
+                cursus_users = client.get_campus_users(cid, MAIN_CURSUS_ID, begin_year=PROMO_YEAR)
+                # Track total promo users per campus
+                campus_all_ids = extract_user_ids(cursus_users)
+                for uid in campus_all_ids:
+                        if uid in user_ids_set and uid not in user_campus_map:
+                            user_campus_map[uid] = (cname, cid)
+                if campus_all_ids:
+                    metadata['campus_promo_totals'][cname] = len(campus_all_ids)
+            metadata['total_promo_users'] = sum(metadata['campus_promo_totals'].values())
+            mapped = len(user_campus_map)
+            print(f"✓ Mapped {mapped}/{len(projects_map)} users to campuses")
+        
+        # Pre-filter: only keep users who will appear in final results
+        # This avoids fetching locations for users who would be discarded
+        original_count = len(projects_map)
+        filtered_user_ids = []
+        for user_id in list(projects_map.keys()):
+            # Skip users not in promo year roster
+            if PROMO_YEAR and user_id not in user_campus_map:
+                continue
+            # Skip users with no new common core projects after filtering
+            if USE_NEW_COMMON_CORE_ONLY:
+                user_projects = projects_map.get(user_id, [])
+                filtered = DataProcessor.filter_python_projects(user_projects, new_common_core_only=True)
+                if not filtered:
+                    continue
+            filtered_user_ids.append(user_id)
+        
+        print(f"✓ Pre-filtered: {len(filtered_user_ids)}/{original_count} users have relevant Python modules")
+        
+        # Step 3: Fetch locations only for pre-filtered users
+        print(f"\nFetching locations for {len(filtered_user_ids)} users...")
         locations_map = client.get_locations_by_user_map(
-            python_users,
+            filtered_user_ids,
             begin_at=LOCATION_BEGIN_DATE,
             end_at=LOCATION_END_DATE
         )
         
         print("\n" + "=" * 60)
         print("PROCESSING USERS")
-        if USE_NEW_COMMON_CORE_ONLY:
-            print("(Filtering for NEW COMMON CORE Python modules only)")
         print("=" * 60)
         
-        # Process users who have Python projects
+        # Process pre-filtered users
         results = []
         zero_logtime_retries = 0
-        for i, user_id in enumerate(projects_map.keys(), 1):
+        for i, user_id in enumerate(filtered_user_ids, 1):
+            # Determine campus from map
+            if user_id in user_campus_map:
+                c_name, c_id = user_campus_map[user_id]
+            else:
+                # Reachable only when PROMO_YEAR is None (no promo filtering)
+                c_name = 'Not Found'
+                c_id = None
+
             user_data = process_user_from_projects(
                 user_id,
                 projects_map, 
                 locations_map,
                 new_common_core_only=USE_NEW_COMMON_CORE_ONLY,
-                campus_name=selected_campus_name,
-                campus_id=selected_campus_id
+                campus_name=c_name,
+                campus_id=c_id
             )
             if user_data:
                 # If total hours is 0 and caching is enabled, the cached
@@ -620,8 +710,8 @@ def main():
                         projects_map,
                         locations_map,
                         new_common_core_only=USE_NEW_COMMON_CORE_ONLY,
-                        campus_name=selected_campus_name,
-                        campus_id=selected_campus_id
+                        campus_name=c_name,
+                        campus_id=c_id
                     )
                     if user_data:
                         results.append(user_data)
@@ -649,7 +739,7 @@ def main():
         
         print("\n" + "=" * 60)
         print(f"Analysis complete!")
-        print(f"Total users processed: {len(projects_map)}")
+        print(f"Total users processed: {len(filtered_user_ids)}")
         print(f"Users with Python projects: {len(results)}")
         if USE_NEW_COMMON_CORE_ONLY:
             print(f"(Filtered for NEW COMMON CORE modules only)")
@@ -662,7 +752,7 @@ def main():
             
             # Generate interactive dashboard
             try:
-                generate_dashboard(results, output_file)
+                generate_dashboard(results, output_file, metadata)
             except Exception as e:
                 print(f"\n⚠️  Could not generate dashboard: {e}")
         

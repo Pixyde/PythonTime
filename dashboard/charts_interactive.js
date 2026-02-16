@@ -17,34 +17,73 @@ registerChart('kpi', function() {
 
   const totalHours = filteredData.reduce((s, u) => s + u.total_python_hours, 0);
   const avgScore = scored.length ? mean(scored.map(p => p.final_mark)) : 0;
-  const completionRate = allProjects.length ? (finished.length / allProjects.length) * 100 : 0;
   const validationRate = allProjects.length ? (validated.length / allProjects.length) * 100 : 0;
   const activeUsers = filteredData.length;
   const avgHoursPerUser = activeUsers ? totalHours / activeUsers : 0;
 
-  // Simple trend: compare first half vs second half of users
-  const half = Math.floor(filteredData.length / 2);
-  const firstHalfHours = filteredData.slice(0, half).reduce((s, u) => s + u.total_python_hours, 0);
-  const secondHalfHours = filteredData.slice(half).reduce((s, u) => s + u.total_python_hours, 0);
-  const hoursTrend = half > 0 ? ((secondHalfHours / Math.max(firstHalfHours, 1)) - 1) * 100 : 0;
+  // Completion rate: % of users who finished ALL modules (data-driven)
+  const totalModuleCount = getAllModules().length;
+  const usersWhoFinishedAll = filteredData.filter(u => countFinishedModules(u) >= totalModuleCount);
+  const usersFinishedAll = usersWhoFinishedAll.length;
+  const completionRate = activeUsers ? (usersFinishedAll / activeUsers) * 100 : 0;
+
+  // Average total completion time (all users): days from first project start to last project end
+  const completionDays = [];
+  filteredData.forEach(u => {
+    const starts = u.python_projects.map(p => p.start_date).filter(Boolean).map(d => new Date(d));
+    const ends = u.python_projects.map(p => p.end_date).filter(Boolean).map(d => new Date(d));
+    if (starts.length && ends.length) {
+      const earliest = new Date(Math.min(...starts));
+      const latest = new Date(Math.max(...ends));
+      const days = (latest - earliest) / MS_PER_DAY;
+      if (days > 0) completionDays.push(days);
+    }
+  });
+  const avgCompletionDays = completionDays.length ? mean(completionDays) : 0;
+
+  // Average time to complete ALL modules (only users who finished all)
+  const allDoneDays = [];
+  usersWhoFinishedAll.forEach(u => {
+    const starts = u.python_projects.map(p => p.start_date).filter(Boolean).map(d => new Date(d));
+    const ends = u.python_projects.map(p => p.end_date).filter(Boolean).map(d => new Date(d));
+    if (starts.length && ends.length) {
+      const days = (new Date(Math.max(...ends)) - new Date(Math.min(...starts))) / MS_PER_DAY;
+      if (days > 0) allDoneDays.push(days);
+    }
+  });
+  const avgAllDoneDays = allDoneDays.length ? mean(allDoneDays) : 0;
+
+  // Promo metrics from metadata (total promo users vs Python users)
+  const totalPromoUsers = METADATA.total_promo_users || 0;
+  const noPythonActivity = totalPromoUsers > 0 ? totalPromoUsers - activeUsers : 0;
+  const noPythonPct = totalPromoUsers > 0 ? (noPythonActivity / totalPromoUsers * 100) : 0;
+  const promoYear = METADATA.promo_year || '';
 
   const kpis = [
-    { label: 'Total Hours', value: formatNumber(totalHours), icon: '⏱️', color: COLORS.primary, trend: hoursTrend },
+    { label: 'Total Hours', value: formatNumber(totalHours), icon: '⏱️', color: COLORS.primary },
     { label: 'Active Users', value: activeUsers, icon: '👥', color: COLORS.cyan },
     { label: 'Avg Score', value: avgScore.toFixed(1), icon: '📊', color: COLORS.purple },
-    { label: 'Completion Rate', value: completionRate.toFixed(0) + '%', icon: '✅', color: COLORS.green },
-    { label: 'Validation Rate', value: validationRate.toFixed(0) + '%', icon: '🏆', color: COLORS.orange },
+    { label: 'Completed All Modules', value: completionRate.toFixed(0) + '% (' + usersFinishedAll + ')', icon: '✅', color: COLORS.green },
+    { label: 'Avg Time (All Users)', value: avgCompletionDays > 0 ? avgCompletionDays.toFixed(0) + 'd' : '-', icon: '📅', color: COLORS.orange },
+    { label: `Avg Time to Complete All ${totalModuleCount} Modules`, value: avgAllDoneDays > 0 ? avgAllDoneDays.toFixed(0) + 'd' : '-', icon: '🎯', color: COLORS.green },
     { label: 'Avg Hours/User', value: avgHoursPerUser.toFixed(1), icon: '📈', color: COLORS.yellow },
+    { label: 'Validation Rate', value: validationRate.toFixed(0) + '%', icon: '🏆', color: COLORS.orange },
     { label: 'Total Projects', value: allProjects.length, icon: '📦', color: COLORS.red },
-    { label: 'Avg Score/Hour', value: (totalHours > 0 ? avgScore / (totalHours / activeUsers) : 0).toFixed(2), icon: '⚡', color: COLORS.cyan }
   ];
+
+  // Add promo metrics only when metadata is available
+  if (totalPromoUsers > 0) {
+    kpis.push(
+      { label: `Total Promo${promoYear ? ' ' + promoYear : ''} Users`, value: totalPromoUsers, icon: '🏫', color: COLORS.cyan },
+      { label: 'No Python Activity', value: `${noPythonPct.toFixed(0)}% (${noPythonActivity})`, icon: '⏳', color: COLORS.red }
+    );
+  }
 
   el.innerHTML = '<div class="kpi-grid">' + kpis.map(kpi => `
     <div class="kpi-card">
       <div style="font-size:24px;margin-bottom:4px">${kpi.icon}</div>
       <div class="kpi-value" style="color:${kpi.color}">${kpi.value}</div>
       <div class="kpi-label">${kpi.label}</div>
-      ${kpi.trend !== undefined ? `<div class="kpi-trend ${kpi.trend >= 0 ? 'up' : 'down'}">${kpi.trend >= 0 ? '▲' : '▼'} ${Math.abs(kpi.trend).toFixed(1)}%</div>` : ''}
     </div>
   `).join('') + '</div>';
 });
@@ -186,7 +225,12 @@ registerChart('racebar', function() {
   const dates = [...allDates].sort();
   if (dates.length < 2) { el.innerHTML = '<div class="chart-empty">Insufficient data</div>'; return; }
 
-  // Sample dates for animation frames
+  // Pre-compute user color index map for O(1) lookups
+  const allUsersList = getAllUsers();
+  const userColorIdx = {};
+  allUsersList.forEach((u, i) => { userColorIdx[u] = i; });
+
+  // Sample dates for animation frames (max 30)
   const step = Math.max(1, Math.floor(dates.length / 30));
   const frames = [];
 
@@ -203,28 +247,61 @@ registerChart('racebar', function() {
       return { login: u.login, value: val };
     }).sort((a, b) => b.value - a.value).slice(0, numBars);
 
-    frames.push({ date, snapshot });
+    // Only add frames that have at least one non-zero value
+    if (snapshot.some(s => s.value > 0)) {
+      frames.push({ date, snapshot });
+    }
+  }
+  // Always include the last date as the final frame
+  const lastDate = dates[dates.length - 1];
+  if (!frames.length || frames[frames.length - 1].date !== lastDate) {
+    const lastSnapshot = filteredData.map(u => {
+      const completedByDate = u.python_projects.filter(p => p.end_date && dateStr(p.end_date) <= lastDate);
+      let val;
+      if (metric === 'modules') {
+        val = completedByDate.length;
+      } else {
+        val = completedByDate.reduce((s, p) => s + p.time_spent_hours, 0);
+      }
+      return { login: u.login, value: val };
+    }).sort((a, b) => b.value - a.value).slice(0, numBars);
+    if (lastSnapshot.some(s => s.value > 0)) {
+      frames.push({ date: lastDate, snapshot: lastSnapshot });
+    }
   }
 
-  // Animation frames
-  const plotlyFrames = frames.map((f, fi) => ({
-    name: f.date,
-    data: [{
-      type: 'bar',
-      orientation: 'h',
-      y: f.snapshot.map(s => s.login).reverse(),
-      x: f.snapshot.map(s => s.value).reverse(),
-      marker: {
-        color: f.snapshot.map((s, i) => COLORS.palette[getAllUsers().indexOf(s.login) % COLORS.palette.length]).reverse()
-      },
-      text: f.snapshot.map(s => `${s.value.toFixed(1)}`).reverse(),
-      textposition: 'outside',
-      textfont: { size: 10, color: '#8e8e8e' }
-    }],
-    layout: {
-      title: { text: f.date, font: { color: '#8e8e8e', size: 14 }, x: 0.95, xanchor: 'right' }
-    }
-  }));
+  if (!frames.length) { el.innerHTML = '<div class="chart-empty">No animation frames</div>'; return; }
+
+  function getUserColor(login) {
+    return COLORS.palette[(userColorIdx[login] || 0) % COLORS.palette.length];
+  }
+
+  // Initial max from first frame
+  const firstMax = Math.max(...frames[0].snapshot.map(s => s.value), 1);
+
+  // Animation frames with per-frame autoscale
+  const plotlyFrames = frames.map(f => {
+    const frameMax = Math.max(...f.snapshot.map(s => s.value), 1);
+    return {
+      name: f.date,
+      data: [{
+        type: 'bar',
+        orientation: 'h',
+        y: f.snapshot.map(s => s.login).reverse(),
+        x: f.snapshot.map(s => s.value).reverse(),
+        marker: {
+          color: f.snapshot.map(s => getUserColor(s.login)).reverse()
+        },
+        text: f.snapshot.map(s => `${s.value.toFixed(1)}`).reverse(),
+        textposition: 'outside',
+        textfont: { size: 10, color: '#8e8e8e' }
+      }],
+      layout: {
+        title: { text: f.date, font: { color: '#8e8e8e', size: 14 }, x: 0.95, xanchor: 'right' },
+        xaxis: { range: [0, frameMax * 1.15] }
+      }
+    };
+  });
 
   // Initial state
   const first = frames[0];
@@ -234,19 +311,17 @@ registerChart('racebar', function() {
     y: first.snapshot.map(s => s.login).reverse(),
     x: first.snapshot.map(s => s.value).reverse(),
     marker: {
-      color: first.snapshot.map((s, i) => COLORS.palette[getAllUsers().indexOf(s.login) % COLORS.palette.length]).reverse()
+      color: first.snapshot.map(s => getUserColor(s.login)).reverse()
     },
     text: first.snapshot.map(s => `${s.value.toFixed(1)}`).reverse(),
     textposition: 'outside',
     textfont: { size: 10, color: '#8e8e8e' }
   };
 
-  const maxVal = Math.max(...frames.flatMap(f => f.snapshot.map(s => s.value)), 1);
-
   const layout = {
     ...PLOTLY_LAYOUT_DEFAULTS,
     margin: { t: 40, r: 60, b: 40, l: 120 },
-    xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, title: metric === 'modules' ? 'Modules Completed' : 'Cumulative Hours', range: [0, maxVal * 1.15] },
+    xaxis: { ...PLOTLY_LAYOUT_DEFAULTS.xaxis, title: metric === 'modules' ? 'Modules Completed' : 'Cumulative Hours', range: [0, firstMax * 1.15] },
     yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis },
     title: { text: first.date, font: { color: '#8e8e8e', size: 14 }, x: 0.95, xanchor: 'right' },
     updatemenus: [{
@@ -263,7 +338,7 @@ registerChart('racebar', function() {
     }],
     sliders: [{
       active: 0,
-      steps: frames.map((f, i) => ({ label: f.date, method: 'animate', args: [[f.date], { frame: { duration: 0, redraw: true }, mode: 'immediate' }] })),
+      steps: frames.map(f => ({ label: f.date, method: 'animate', args: [[f.date], { frame: { duration: 0, redraw: true }, mode: 'immediate' }] })),
       x: 0, len: 1,
       currentvalue: { prefix: 'Date: ', font: { color: '#8e8e8e', size: 12 } },
       font: { color: '#8e8e8e', size: 9 },
@@ -273,7 +348,12 @@ registerChart('racebar', function() {
     }]
   };
 
-  Plotly.react(el, [trace], layout, PLOTLY_CONFIG).then(() => {
-    Plotly.addFrames(el, plotlyFrames);
+  // Use Plotly.newPlot for proper animation support, then add frames
+  Plotly.newPlot(el, [trace], layout, PLOTLY_CONFIG).then(function() {
+    if (plotlyFrames.length > 0) {
+      Plotly.addFrames(el, plotlyFrames);
+    }
+  }).catch(function(err) {
+    console.error('Race bar chart animation error:', err);
   });
 });

@@ -21,7 +21,19 @@ registerChart('treemap', function() {
   const values = [0];
   const colors = [0];
 
-  filteredData.forEach((user, ui) => {
+  // Pre-compute module index map for O(1) lookups
+  const allModulesTree = getAllModules();
+  const moduleIndexMap = {};
+  allModulesTree.forEach((m, i) => { moduleIndexMap[m] = i; });
+
+  // Cap to top 100 users by hours for performance
+  const maxTreemapUsers = 100;
+  let treemapData = filteredData;
+  if (treemapData.length > maxTreemapUsers) {
+    treemapData = [...filteredData].sort((a, b) => b.total_python_hours - a.total_python_hours).slice(0, maxTreemapUsers);
+  }
+
+  treemapData.forEach((user, ui) => {
     const userId = `user-${user.login}`;
     ids.push(userId);
     labels.push(user.login);
@@ -42,7 +54,7 @@ registerChart('treemap', function() {
       } else if (colorBy === 'efficiency') {
         colors.push(proj.final_mark && proj.time_spent_hours > 0 ? proj.final_mark / proj.time_spent_hours : 0);
       } else {
-        colors.push(getAllModules().indexOf(proj.project_name));
+        colors.push(moduleIndexMap[proj.project_name] || 0);
       }
     });
   });
@@ -89,13 +101,25 @@ registerChart('sunburst', function() {
   const values = [0];
   const markerColors = [COLORS.primary];
 
-  filteredData.forEach(user => {
+  // Pre-compute module index map for O(1) lookups
+  const allModulesSun = getAllModules();
+  const moduleIdxMap = {};
+  allModulesSun.forEach((m, i) => { moduleIdxMap[m] = i; });
+
+  // Cap to top 100 users by hours for performance
+  const maxSunburstUsers = 100;
+  let sunburstData = filteredData;
+  if (sunburstData.length > maxSunburstUsers) {
+    sunburstData = [...filteredData].sort((a, b) => b.total_python_hours - a.total_python_hours).slice(0, maxSunburstUsers);
+  }
+
+  sunburstData.forEach((user, ui) => {
     const userId = `u-${user.login}`;
     ids.push(userId);
     labels.push(user.login);
     parents.push('Total');
     values.push(0);
-    markerColors.push(COLORS.palette[filteredData.indexOf(user) % COLORS.palette.length]);
+    markerColors.push(COLORS.palette[ui % COLORS.palette.length]);
 
     user.python_projects.forEach((proj, pi) => {
       const projId = `${userId}-${pi}`;
@@ -110,7 +134,7 @@ registerChart('sunburst', function() {
         const mark = proj.final_mark || 0;
         markerColors.push(mark >= 80 ? COLORS.green : mark >= 50 ? COLORS.orange : COLORS.red);
       } else {
-        markerColors.push(COLORS.palette[getAllModules().indexOf(proj.project_name) % COLORS.palette.length]);
+        markerColors.push(COLORS.palette[(moduleIdxMap[proj.project_name] || 0) % COLORS.palette.length]);
       }
 
       // Status level
@@ -204,7 +228,13 @@ registerChart('network', function() {
   const simThreshold = parseFloat(document.getElementById('network-threshold')?.value) || 0.5;
 
   // Calculate similarity between users based on shared modules
-  const users = filteredData.map(u => ({
+  // Cap to 100 users to prevent O(n²) performance issues
+  const maxNetworkUsers = 100;
+  let networkData = filteredData;
+  if (networkData.length > maxNetworkUsers) {
+    networkData = [...filteredData].sort((a, b) => b.total_python_hours - a.total_python_hours).slice(0, maxNetworkUsers);
+  }
+  const users = networkData.map(u => ({
     login: u.login,
     modules: new Set(u.python_projects.map(p => p.project_name)),
     hours: u.total_python_hours,
@@ -233,8 +263,10 @@ registerChart('network', function() {
     y: Math.sin(2 * Math.PI * i / users.length) * 100 + (seededNoise(i * 2 + 1) - 0.5) * 40
   }));
 
-  // Iterative force layout (simplified)
-  for (let iter = 0; iter < 50; iter++) {
+  // Iterative force layout (simplified) — scale iterations inversely with node count
+  // to keep total work (iterations × nodes²) manageable
+  const forceIterations = Math.min(50, Math.max(10, Math.round(500 / users.length)));
+  for (let iter = 0; iter < forceIterations; iter++) {
     positions.forEach((p1, i) => {
       let fx = 0, fy = 0;
       positions.forEach((p2, j) => {

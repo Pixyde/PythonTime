@@ -267,6 +267,20 @@ body {
   font-size: 11px;
   min-width: 80px;
 }
+.ctrl select[multiple] {
+  min-height: 60px;
+  max-height: 120px;
+  min-width: 140px;
+  padding: 2px;
+}
+.ctrl select[multiple] option {
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+.ctrl select[multiple] option:checked {
+  background: var(--accent);
+  color: #fff;
+}
 .ctrl input[type="range"] {
   -webkit-appearance: none;
   height: 4px;
@@ -353,12 +367,6 @@ body {
   letter-spacing: 0.5px;
   margin-top: 4px;
 }
-.kpi-card .kpi-trend {
-  font-size: 12px;
-  margin-top: 6px;
-}
-.kpi-card .kpi-trend.up { color: var(--green); }
-.kpi-card .kpi-trend.down { color: var(--red); }
 .kpi-card .kpi-sparkline {
   margin-top: 8px;
   height: 30px;
@@ -498,6 +506,32 @@ body {
   z-index: 50;
 }
 .multi-select-dropdown.open { display: block; }
+.multi-select-dropdown .dropdown-search {
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 11px;
+  outline: none;
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.multi-select-dropdown .dropdown-search::placeholder { color: var(--text-muted); }
+.select-search {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  min-width: 80px;
+  margin-bottom: 4px;
+}
+.select-search::placeholder { color: var(--text-muted); }
 .multi-select-dropdown label {
   display: flex;
   align-items: center;
@@ -510,6 +544,27 @@ body {
   letter-spacing: normal;
 }
 .multi-select-dropdown label:hover { background: var(--bg-hover); }
+.dropdown-actions {
+  display: flex;
+  gap: 4px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 28px;
+  z-index: 1;
+  background: var(--bg-panel);
+}
+.dropdown-actions button {
+  flex: 1;
+  padding: 2px 6px;
+  font-size: 10px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.dropdown-actions button:hover { background: var(--bg-hover); color: var(--text-primary); }
 
 /* ---- EXPORT BTN ---- */
 .export-btn {

@@ -3,10 +3,34 @@
    25. Campus Comparison Dashboard
    ============================================================ */
 
+// ---- CAMPUS SECTION HELPERS ----
+function populateCampusSelect() {
+  const sel = document.getElementById('campus-select');
+  if (!sel || sel.options.length > 0) return;
+  const campuses = getAllCampuses();
+  sel.innerHTML = campuses.map(c => `<option value="${c}" selected>${c}</option>`).join('');
+}
+
+function getSelectedCampuses() {
+  const sel = document.getElementById('campus-select');
+  if (!sel || sel.options.length === 0) return [];
+  const selected = [...sel.selectedOptions].map(o => o.value);
+  return selected.length > 0 ? selected : getAllCampuses();
+}
+
+function updateCampusSection() {
+  if (chartUpdaters.campus) chartUpdaters.campus();
+  if (chartUpdaters.promoCompletion) chartUpdaters.promoCompletion();
+  if (chartUpdaters.campusmodule) chartUpdaters.campusmodule();
+}
+
 // ---- 25. CAMPUS COMPARISON ----
 registerChart('campus', function() {
   const el = document.getElementById('chart-25');
   if (!el) return;
+
+  // Populate campus dropdown on first render
+  populateCampusSelect();
 
   // Check if campus data is available
   const hasCampus = filteredData.some(u => u.campus_name);
@@ -17,18 +41,20 @@ registerChart('campus', function() {
 
   const metric = document.getElementById('campus-metric')?.value || 'avg_hours';
   const showAll = document.getElementById('campus-show-all')?.checked !== false;
+  const selectedCampuses = getSelectedCampuses();
 
-  // Group data by campus
+  // Group data by campus, filtered to selected campuses
   const campusGroups = {};
   filteredData.forEach(u => {
     const campus = u.campus_name || 'Unknown';
+    if (selectedCampuses.length && !selectedCampuses.includes(campus)) return;
     if (!campusGroups[campus]) campusGroups[campus] = [];
     campusGroups[campus].push(u);
   });
 
   const campusNames = Object.keys(campusGroups).sort();
   if (campusNames.length < 1) {
-    el.innerHTML = '<div class="chart-empty">Only one campus found. Need multiple campuses for comparison.</div>';
+    el.innerHTML = '<div class="chart-empty">No campus data found for selected filters.</div>';
     return;
   }
 
@@ -51,8 +77,20 @@ registerChart('campus', function() {
       totalProjects: allProjects.length,
       avgProjectsPerUser: users.length ? allProjects.length / users.length : 0,
       efficiency: users.length && users.reduce((s, u) => s + u.total_python_hours, 0) > 0
-        ? (scored.length ? mean(scored.map(p => p.final_mark)) : 0) / (users.reduce((s, u) => s + u.total_python_hours, 0) / users.length)
-        : 0
+        ? allProjects.length / (users.reduce((s, u) => s + u.total_python_hours, 0) / users.length)
+        : 0,
+      avgCompletionTime: (function() {
+        const days = [];
+        users.forEach(u => {
+          const starts = u.python_projects.map(p => p.start_date).filter(Boolean).map(d => new Date(d));
+          const ends = u.python_projects.map(p => p.end_date).filter(Boolean).map(d => new Date(d));
+          if (starts.length && ends.length) {
+            const d = (Math.max(...ends) - Math.min(...starts)) / MS_PER_DAY;
+            if (d > 0) days.push(d);
+          }
+        });
+        return days.length ? mean(days) : 0;
+      })()
     };
   });
 
@@ -63,7 +101,8 @@ registerChart('campus', function() {
     completionRate: mean(campusStats.map(c => c.completionRate)),
     validationRate: mean(campusStats.map(c => c.validationRate)),
     avgProjectsPerUser: mean(campusStats.map(c => c.avgProjectsPerUser)),
-    efficiency: mean(campusStats.map(c => c.efficiency))
+    efficiency: mean(campusStats.map(c => c.efficiency)),
+    avgCompletionTime: mean(campusStats.map(c => c.avgCompletionTime))
   };
 
   // Build chart based on metric
@@ -125,8 +164,9 @@ registerChart('campus', function() {
     'validation': { key: 'validationRate', label: 'Validation Rate (%)' },
     'users': { key: 'userCount', label: 'Number of Users' },
     'total_hours': { key: 'totalHours', label: 'Total Hours' },
-    'efficiency': { key: 'efficiency', label: 'Efficiency (pts/hour)' },
-    'projects_per_user': { key: 'avgProjectsPerUser', label: 'Avg Projects per User' }
+    'efficiency': { key: 'efficiency', label: 'Efficiency (proj/hour)' },
+    'projects_per_user': { key: 'avgProjectsPerUser', label: 'Avg Projects per User' },
+    'avg_completion_time': { key: 'avgCompletionTime', label: 'Avg Completion Time (days)' }
   };
 
   const m = metricMap[metric] || metricMap['avg_hours'];
@@ -167,7 +207,7 @@ registerChart('campus', function() {
   Plotly.react(el, traces, layout, PLOTLY_CONFIG);
 });
 
-// ---- 28. PROMO COMPLETION — % who finished all modules ----
+// ---- 28. PROMO COMPLETION — % who finished all modules (New Common Core only) ----
 registerChart('promoCompletion', function() {
   const el = document.getElementById('chart-28');
   if (!el) return;
@@ -178,21 +218,29 @@ registerChart('promoCompletion', function() {
     return;
   }
 
-  const allModules = getAllModules();
-  const moduleCount = allModules.length;
+  // Only consider modules from the data
+  const nccModules = getAllModules();
+  const moduleCount = nccModules.length;
   if (moduleCount === 0) { el.innerHTML = '<div class="chart-empty">No modules found</div>'; return; }
 
-  // Group by campus
+  // Use all filtered users (backend already filters to Python modules)
+  const nccUsers = filteredData;
+  if (!nccUsers.length) { el.innerHTML = '<div class="chart-empty">No users found</div>'; return; }
+
+  const selectedCampuses = getSelectedCampuses();
+
+  // Group by campus, filtered to selected campuses
   const campusGroups = {};
-  filteredData.forEach(u => {
+  nccUsers.forEach(u => {
     const campus = u.campus_name || 'Unknown';
+    if (selectedCampuses.length && !selectedCampuses.includes(campus)) return;
     if (!campusGroups[campus]) campusGroups[campus] = [];
     campusGroups[campus].push(u);
   });
 
   const campusNames = Object.keys(campusGroups).sort();
 
-  // For each campus, calculate % of users who finished ALL modules
+  // For each campus, calculate % of new common core users who finished ALL NCC modules
   const finishedAll = [];
   const finishedMost = []; // >= 75% modules
   const totalUsers = [];
@@ -204,7 +252,11 @@ registerChart('promoCompletion', function() {
     let doneAll = 0;
     let doneMost = 0;
     users.forEach(u => {
-      const finishedModules = new Set(u.python_projects.filter(p => p.status === 'finished').map(p => p.project_name));
+      const finishedModules = new Set(
+        u.python_projects
+          .filter(p => p.status === 'finished')
+          .map(p => p.project_name)
+      );
       if (finishedModules.size >= moduleCount) doneAll++;
       if (finishedModules.size >= moduleCount * 0.75) doneMost++;
     });
@@ -228,7 +280,7 @@ registerChart('promoCompletion', function() {
       name: `Finished all ${moduleCount} modules`,
       x: [...campusNames, '⊕ Global'],
       y: [...pctAll, globalPctAll],
-      text: [...pctAll.map((v, i) => `${v.toFixed(0)}% (${finishedAll[i]}/${totalUsers[i]})`), `${globalPctAll.toFixed(0)}% (${globalAll}/${globalTotal})`],
+      text: [...pctAll.map(v => `${v.toFixed(0)}%`), `${globalPctAll.toFixed(0)}%`],
       textposition: 'outside',
       textfont: { size: 9, color: '#8e8e8e' },
       marker: { color: COLORS.green },
@@ -240,7 +292,7 @@ registerChart('promoCompletion', function() {
       name: `Finished ≥75% modules`,
       x: [...campusNames, '⊕ Global'],
       y: [...pctMost, globalPctMost],
-      text: [...pctMost.map((v, i) => `${v.toFixed(0)}%`), `${globalPctMost.toFixed(0)}%`],
+      text: [...pctMost.map(v => `${v.toFixed(0)}%`), `${globalPctMost.toFixed(0)}%`],
       textposition: 'outside',
       textfont: { size: 9, color: '#8e8e8e' },
       marker: { color: COLORS.cyan },
@@ -272,10 +324,13 @@ registerChart('campusmodule', function() {
 
   const metricSel = document.getElementById('campus-module-metric')?.value || 'avg_hours';
 
-  // Group by campus
+  const selectedCampuses = getSelectedCampuses();
+
+  // Group by campus, filtered to selected campuses
   const campusGroups = {};
   filteredData.forEach(u => {
     const campus = u.campus_name || 'Unknown';
+    if (selectedCampuses.length && !selectedCampuses.includes(campus)) return;
     if (!campusGroups[campus]) campusGroups[campus] = [];
     campusGroups[campus].push(u);
   });
@@ -304,19 +359,33 @@ registerChart('campusmodule', function() {
       return mean(values);
     });
 
+    // Total across all modules for this campus
+    const allValues = [];
+    users.forEach(u => {
+      u.python_projects.forEach(p => {
+        if (metricSel === 'avg_mark' || metricSel === 'median_mark') {
+          if (p.final_mark !== null && p.final_mark !== undefined) allValues.push(p.final_mark);
+        } else {
+          allValues.push(p.time_spent_hours);
+        }
+      });
+    });
+    const totalVal = allValues.length ? ((metricSel === 'median_hours' || metricSel === 'median_mark') ? median(allValues) : mean(allValues)) : 0;
+
     return {
       type: 'bar',
       name: campus,
-      x: modules,
-      y: yValues,
+      x: [...modules, '⊕ Total'],
+      y: [...yValues, totalVal],
       marker: { color: COLORS.palette[ci % COLORS.palette.length] }
     };
   });
 
-  // Global average line
+  // Global average line (scoped to selected campuses)
+  const selectedUsers = filteredData.filter(u => selectedCampuses.includes(u.campus_name || 'Unknown'));
   const globalValues = modules.map(mod => {
     const values = [];
-    filteredData.forEach(u => {
+    selectedUsers.forEach(u => {
       u.python_projects.forEach(p => {
         if (p.project_name === mod) {
           if (metricSel === 'avg_mark' || metricSel === 'median_mark') {
@@ -328,12 +397,24 @@ registerChart('campusmodule', function() {
       });
     });
     if (!values.length) return 0;
-    return mean(values);
+    return (metricSel === 'median_hours' || metricSel === 'median_mark') ? median(values) : mean(values);
   });
+  // Global total across all modules
+  const globalAllValues = [];
+  selectedUsers.forEach(u => {
+    u.python_projects.forEach(p => {
+      if (metricSel === 'avg_mark' || metricSel === 'median_mark') {
+        if (p.final_mark !== null && p.final_mark !== undefined) globalAllValues.push(p.final_mark);
+      } else {
+        globalAllValues.push(p.time_spent_hours);
+      }
+    });
+  });
+  const globalTotal = globalAllValues.length ? ((metricSel === 'median_hours' || metricSel === 'median_mark') ? median(globalAllValues) : mean(globalAllValues)) : 0;
 
   traces.push({
     type: 'scatter', mode: 'lines+markers', name: '⊕ Global Avg',
-    x: modules, y: globalValues,
+    x: [...modules, '⊕ Total'], y: [...globalValues, globalTotal],
     line: { color: COLORS.yellow, dash: 'dash', width: 3 },
     marker: { size: 6 }
   });

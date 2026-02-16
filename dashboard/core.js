@@ -4,7 +4,12 @@
 
 // ---- GLOBAL STATE ----
 const RAW_DATA = {{DATA_PLACEHOLDER}};
+const METADATA = {{METADATA_PLACEHOLDER}};
 let filteredData = [];
+
+// Users to always exclude from all calculations
+const EXCLUDED_USERS = ['suske', 'wkrati'];
+
 let globalFilters = {
   users: [],
   modules: [],
@@ -50,6 +55,8 @@ const COLORS = {
             '#4dc9f6','#f67019','#f53794','#537bc4','#acc236','#166a8f','#00a950','#58595b','#8549ba','#e6194b']
 };
 
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
 const STATUS_COLORS = {
   finished: '#73bf69',
   in_progress: '#5794f2',
@@ -57,9 +64,60 @@ const STATUS_COLORS = {
   unknown: '#8e8e8e'
 };
 
+// ---- NEW COMMON CORE MODULE SLUGS ----
+const NEW_COMMON_CORE_SLUGS = [
+  'python-0-starting',
+  'python-1-base',
+  'python-2-datascience',
+  'python-3-oop',
+  'python-module-00',
+  'python-module-01',
+  'python-module-02',
+  'python-module-03',
+  'python-module-04',
+  'piscine-python',
+  'piscine-python-datascience',
+];
+
+function isNewCommonCoreProject(project) {
+  const slug = (project.project_slug || '').toLowerCase();
+  const name = (project.project_name || '').toLowerCase();
+  return NEW_COMMON_CORE_SLUGS.some(m => slug.includes(m) || name.includes(m));
+}
+
+function getNewCommonCoreModules() {
+  const modules = new Set();
+  RAW_DATA.forEach(u => u.python_projects.forEach(p => {
+    if (isNewCommonCoreProject(p)) modules.add(p.project_name);
+  }));
+  return [...modules].sort();
+}
+
+function isNewCommonCoreUser(user) {
+  return user.python_projects.some(p => isNewCommonCoreProject(p));
+}
+
+function getCompletionDays(project) {
+  if (!project.start_date || !project.end_date) return null;
+  const start = new Date(project.start_date);
+  const end = new Date(project.end_date);
+  if (end <= start) return null;
+  const days = (end - start) / MS_PER_DAY;
+  return days;
+}
+
+// Count unique finished module names for a user (data-driven, no hardcoded slugs)
+function countFinishedModules(user) {
+  const finished = new Set();
+  user.python_projects.forEach(p => {
+    if (p.status === 'finished') finished.add(p.project_name);
+  });
+  return finished.size;
+}
+
 // ---- UTILITY FUNCTIONS ----
 function getAllUsers() {
-  return [...new Set(RAW_DATA.map(u => u.login))].sort();
+  return [...new Set(RAW_DATA.map(u => u.login))].filter(u => !EXCLUDED_USERS.includes(u)).sort();
 }
 
 function getAllModules() {
@@ -121,6 +179,8 @@ function dateStr(iso) {
 // ---- APPLY GLOBAL FILTERS ----
 function applyGlobalFilters() {
   filteredData = RAW_DATA.map(user => {
+    // Exclude blacklisted users
+    if (EXCLUDED_USERS.includes(user.login)) return null;
     // User filter
     if (globalFilters.users.length > 0 && !globalFilters.users.includes(user.login)) return null;
     // Campus filter
@@ -153,7 +213,7 @@ function applyGlobalFilters() {
       python_projects: projects,
       total_python_hours: projects.reduce((s, p) => s + p.time_spent_hours, 0)
     };
-  }).filter(Boolean);
+  }).filter(Boolean).filter(u => u.total_python_hours > 0);
 }
 
 // ---- POPULATE GLOBAL FILTERS ----
@@ -166,7 +226,9 @@ function populateGlobalFilters() {
   // User multi-select
   const userDropdown = document.getElementById('filter-users-dropdown');
   if (userDropdown) {
-    userDropdown.innerHTML = users.map(u =>
+    userDropdown.innerHTML = '<input type="text" class="dropdown-search" placeholder="Search users..." oninput="filterDropdownItems(this)" onclick="event.stopPropagation()">' +
+      '<div class="dropdown-actions" onclick="event.stopPropagation()"><button onclick="selectAllDropdown(\'filter-users-dropdown\')">Select All</button><button onclick="deselectAllDropdown(\'filter-users-dropdown\')">Deselect All</button></div>' +
+      users.map(u =>
       `<label><input type="checkbox" value="${u}" onchange="onGlobalFilterChange()"> ${u}</label>`
     ).join('');
   }
@@ -174,7 +236,9 @@ function populateGlobalFilters() {
   // Module multi-select
   const moduleDropdown = document.getElementById('filter-modules-dropdown');
   if (moduleDropdown) {
-    moduleDropdown.innerHTML = modules.map(m =>
+    moduleDropdown.innerHTML = '<input type="text" class="dropdown-search" placeholder="Search modules..." oninput="filterDropdownItems(this)" onclick="event.stopPropagation()">' +
+      '<div class="dropdown-actions" onclick="event.stopPropagation()"><button onclick="selectAllDropdown(\'filter-modules-dropdown\')">Select All</button><button onclick="deselectAllDropdown(\'filter-modules-dropdown\')">Deselect All</button></div>' +
+      modules.map(m =>
       `<label><input type="checkbox" value="${m}" onchange="onGlobalFilterChange()"> ${m}</label>`
     ).join('');
   }
@@ -182,7 +246,9 @@ function populateGlobalFilters() {
   // Campus multi-select
   const campusDropdown = document.getElementById('filter-campus-dropdown');
   if (campusDropdown) {
-    campusDropdown.innerHTML = campuses.map(c =>
+    campusDropdown.innerHTML = '<input type="text" class="dropdown-search" placeholder="Search campuses..." oninput="filterDropdownItems(this)" onclick="event.stopPropagation()">' +
+      '<div class="dropdown-actions" onclick="event.stopPropagation()"><button onclick="selectAllDropdown(\'filter-campus-dropdown\')">Select All</button><button onclick="deselectAllDropdown(\'filter-campus-dropdown\')">Deselect All</button></div>' +
+      campuses.map(c =>
       `<label><input type="checkbox" value="${c}" onchange="onGlobalFilterChange()"> ${c}</label>`
     ).join('');
   }
@@ -261,6 +327,11 @@ function toggleMultiSelect(id) {
     if (d.id !== id) d.classList.remove('open');
   });
   dd.classList.toggle('open');
+  // Focus the search input when opening
+  if (dd.classList.contains('open')) {
+    const searchInput = dd.querySelector('.dropdown-search');
+    if (searchInput) searchInput.focus();
+  }
 }
 document.addEventListener('click', function(e) {
   if (!e.target.closest('.multi-select')) {
@@ -268,8 +339,80 @@ document.addEventListener('click', function(e) {
   }
 });
 
+// ---- DROPDOWN SEARCH ----
+function filterDropdownItems(inputEl) {
+  const query = inputEl.value.toLowerCase();
+  const container = inputEl.parentElement;
+  container.querySelectorAll('label').forEach(label => {
+    const text = label.textContent.toLowerCase();
+    label.style.display = text.includes(query) ? '' : 'none';
+  });
+}
+
+function filterSelectOptions(inputEl, selectId) {
+  const query = inputEl.value.toLowerCase();
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  [...sel.options].forEach(opt => {
+    const match = opt.textContent.toLowerCase().includes(query);
+    opt.style.display = match ? '' : 'none';
+    // For hidden options in <select>, we need to also toggle the hidden attribute
+    opt.hidden = !match;
+  });
+}
+
+// ---- SELECT ALL / DESELECT ALL ----
+function selectAllDropdown(dropdownId) {
+  const dropdown = document.getElementById(dropdownId);
+  if (!dropdown) return;
+  dropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+  onGlobalFilterChange();
+}
+
+function deselectAllDropdown(dropdownId) {
+  const dropdown = document.getElementById(dropdownId);
+  if (!dropdown) return;
+  dropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+  onGlobalFilterChange();
+}
+
+function selectAllOptions(selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  [...sel.options].forEach(opt => { opt.selected = true; });
+  sel.dispatchEvent(new Event('change'));
+}
+
+function deselectAllOptions(selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  [...sel.options].forEach(opt => { opt.selected = false; });
+  sel.dispatchEvent(new Event('change'));
+}
+
 // ---- NAVIGATION ----
 let activeSection = 'all';
+const renderedSections = new Set();
+
+// Map chart IDs to their section for lazy rendering
+const chartSectionMap = {
+  kpi: 'kpi',
+  modulestats: 'modulestats', modulestatbar: 'modulestats',
+  funnel: 'statistical',
+  moduleprogress: 'statistical',
+  ranking: 'leaderboard', topbar: 'leaderboard',
+  datatable: 'interactive', racebar: 'interactive',
+  campus: 'campus', promoCompletion: 'campus', campusmodule: 'campus'
+};
+
+function updateChartsForSection(section) {
+  Object.entries(chartUpdaters).forEach(([id, fn]) => {
+    if (section === 'all' || chartSectionMap[id] === section) {
+      try { fn(); } catch(e) { console.error('Chart update error:', id, e); }
+    }
+  });
+  renderedSections.add(section);
+}
 
 function showSection(section) {
   activeSection = section;
@@ -281,6 +424,18 @@ function showSection(section) {
       s.classList.toggle('hidden', s.dataset.section !== section);
     }
   });
+
+  // Lazy render: only render charts for newly visible sections
+  if (section === 'all') {
+    // Render any sections not yet rendered
+    const allSections = new Set(Object.values(chartSectionMap));
+    allSections.forEach(s => {
+      if (!renderedSections.has(s)) updateChartsForSection(s);
+    });
+    renderedSections.add('all');
+  } else if (!renderedSections.has(section)) {
+    updateChartsForSection(section);
+  }
 }
 
 // ---- UPDATE ALL CHARTS ----
@@ -291,9 +446,17 @@ function registerChart(id, updateFn) {
 }
 
 function updateAllCharts() {
-  Object.values(chartUpdaters).forEach(fn => {
-    try { fn(); } catch(e) { console.error('Chart update error:', e); }
-  });
+  renderedSections.clear();
+  if (activeSection === 'all') {
+    Object.entries(chartUpdaters).forEach(([id, fn]) => {
+      try { fn(); } catch(e) { console.error('Chart update error:', id, e); }
+    });
+    const allSections = new Set(Object.values(chartSectionMap));
+    allSections.forEach(s => renderedSections.add(s));
+    renderedSections.add('all');
+  } else {
+    updateChartsForSection(activeSection);
+  }
 }
 
 // ---- HEADER STATS ----

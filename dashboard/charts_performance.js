@@ -92,7 +92,7 @@ registerChart('efficiency', function() {
     const scored = projects.filter(p => p.final_mark !== null && p.final_mark !== undefined && p.time_spent_hours > 0);
     const totalHours = scored.reduce((s, p) => s + p.time_spent_hours, 0);
     const avgMark = scored.length ? mean(scored.map(p => p.final_mark)) : 0;
-    const efficiency = totalHours > 0 ? avgMark / totalHours : 0;
+    const efficiency = totalHours > 0 ? scored.length / totalHours : 0;
     return { login: user.login, efficiency, totalHours, avgMark, projectCount: scored.length };
   }).filter(u => u.projectCount >= minProjects && u.efficiency >= threshold);
 
@@ -110,10 +110,10 @@ registerChart('efficiency', function() {
     marker: {
       color: top20.map(u => u.efficiency >= avgEff ? COLORS.green : COLORS.orange)
     },
-    text: top20.map(u => `${u.efficiency.toFixed(2)} pts/h`),
+    text: top20.map(u => `${u.efficiency.toFixed(2)} proj/h`),
     textposition: 'outside',
     textfont: { size: 9, color: '#8e8e8e' },
-    hovertext: top20.map(u => `${u.login}<br>Efficiency: ${u.efficiency.toFixed(2)} pts/h<br>Avg Mark: ${u.avgMark.toFixed(1)}<br>Hours: ${u.totalHours.toFixed(1)}<br>Projects: ${u.projectCount}`),
+    hovertext: top20.map(u => `${u.login}<br>Efficiency: ${u.efficiency.toFixed(2)} proj/h<br>Avg Mark: ${u.avgMark.toFixed(1)}<br>Hours: ${u.totalHours.toFixed(1)}<br>Projects: ${u.projectCount}`),
     hoverinfo: 'text'
   }];
 
@@ -126,7 +126,7 @@ registerChart('efficiency', function() {
 
   const layout = {
     ...PLOTLY_LAYOUT_DEFAULTS,
-    yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, title: 'Score per Hour (pts/h)' },
+    yaxis: { ...PLOTLY_LAYOUT_DEFAULTS.yaxis, title: 'Projects per Hour (proj/h)' },
     showlegend: false
   };
   Plotly.react(el, traces, layout, PLOTLY_CONFIG);

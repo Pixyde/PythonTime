@@ -76,13 +76,8 @@
   <button data-section="all" class="active" onclick="showSection('all')">📋 All</button>
   <button data-section="kpi" onclick="showSection('kpi')">🎯 KPI</button>
   <button data-section="modulestats" onclick="showSection('modulestats')">📚 Module Stats</button>
-  <button data-section="timeline" onclick="showSection('timeline')">📅 Timeline</button>
-  <button data-section="comparison" onclick="showSection('comparison')">📈 Comparison</button>
-  <button data-section="performance" onclick="showSection('performance')">🎯 Performance</button>
-  <button data-section="flow" onclick="showSection('flow')">🔄 Flow</button>
   <button data-section="statistical" onclick="showSection('statistical')">📊 Statistical</button>
   <button data-section="leaderboard" onclick="showSection('leaderboard')">🏆 Leaderboard</button>
-  <button data-section="advanced" onclick="showSection('advanced')">🎨 Advanced</button>
   <button data-section="interactive" onclick="showSection('interactive')">🎛️ Interactive</button>
   <button data-section="campus" onclick="showSection('campus')">🏫 Campus</button>
 </div>
@@ -114,202 +109,34 @@
       <div class="panel-header"><h3><span class="panel-number">27</span> Average Time per Module (Bar Chart)</h3><span class="panel-badge">Module Stats</span></div>
       <div class="panel-controls">
         <label class="ctrl-toggle"><input type="checkbox" id="modbar-median" checked onchange="chartUpdaters.modulestatbar()"> Show Median</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="modbar-stddev" onchange="chartUpdaters.modulestatbar()"> Show Std Dev</label>
       </div>
       <div class="panel-body"><div id="chart-27" class="chart-container"></div></div>
     </div>
   </div>
 </div>
 
-<!-- ===== TIMELINE SECTION ===== -->
-<div class="section" data-section="timeline">
-  <div class="section-title">📅 Timeline Visualizations</div>
-  <div class="grid">
-    <!-- 1. Gantt Chart -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">1</span> Timeline Gantt Chart</h3><span class="panel-badge">Timeline</span></div>
-      <div class="panel-controls">
-        <div class="ctrl"><label>User</label><select id="gantt-user" onchange="chartUpdaters.gantt()"><option value="all">All Users</option></select></div>
-        <div class="ctrl"><label>Min Hours</label><input type="range" id="gantt-min-hours" min="0" max="100" value="0" oninput="this.nextElementSibling.textContent=this.value+'h';chartUpdaters.gantt()"><span class="range-value">0h</span></div>
-        <div class="ctrl"><label>Color By</label><select id="gantt-color" onchange="chartUpdaters.gantt()"><option value="status">Status</option><option value="user">User</option></select></div>
-        <div class="ctrl"><label>Sort</label><select id="gantt-sort" onchange="chartUpdaters.gantt()"><option value="alpha">Alphabetical</option><option value="hours">Hours</option></select></div>
-        <label class="ctrl-toggle"><input type="checkbox" id="gantt-names" checked onchange="chartUpdaters.gantt()"> Show Names</label>
-      </div>
-      <div class="panel-body"><div id="chart-1" class="chart-container"></div></div>
-    </div>
-    <!-- 2. Heatmap Calendar -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">2</span> Time Spent Heatmap Calendar</h3><span class="panel-badge">Timeline</span></div>
-      <div class="panel-controls">
-        <div class="ctrl"><label>Aggregate</label><select id="heatmap-agg" onchange="chartUpdaters.heatmap()"><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></div>
-        <div class="ctrl"><label>Min Hours</label><input type="range" id="heatmap-threshold" min="0" max="50" value="0" oninput="this.nextElementSibling.textContent=this.value+'h';chartUpdaters.heatmap()"><span class="range-value">0h</span></div>
-        <label class="ctrl-toggle"><input type="checkbox" id="heatmap-weekends" checked onchange="chartUpdaters.heatmap()"> Weekends</label>
-      </div>
-      <div class="panel-body"><div id="chart-2" class="chart-container"></div></div>
-    </div>
-    <!-- 3. Progress Timeline -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">3</span> Progress Timeline</h3><span class="panel-badge">Timeline</span></div>
-      <div class="panel-controls">
-        <div class="ctrl"><label>Granularity</label><select id="progress-granularity" onchange="chartUpdaters.progress()"><option value="weekly">Weekly</option><option value="daily">Daily</option><option value="monthly">Monthly</option></select></div>
-        <div class="ctrl"><label>Stack By</label><select id="progress-stack" onchange="chartUpdaters.progress()"><option value="module">Module</option><option value="user">User</option></select></div>
-        <label class="ctrl-toggle"><input type="checkbox" id="progress-cumulative" checked onchange="chartUpdaters.progress()"> Cumulative</label>
-      </div>
-      <div class="panel-body"><div id="chart-3" class="chart-container"></div></div>
-    </div>
-  </div>
-</div>
 
-<!-- ===== COMPARISON SECTION ===== -->
-<div class="section" data-section="comparison">
-  <div class="section-title">📈 Comparison Visualizations</div>
-  <div class="grid">
-    <!-- 4. Multi-User Bar -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">4</span> Multi-User Bar/Column Chart</h3><span class="panel-badge">Comparison</span></div>
-      <div class="panel-controls">
-        <div class="ctrl"><label>Top N</label><select id="multibar-top" onchange="chartUpdaters.multibar()"><option value="5">Top 5</option><option value="10">Top 10</option><option value="15" selected>Top 15</option><option value="999">All</option></select></div>
-        <div class="ctrl"><label>Module</label><select id="multibar-module" onchange="chartUpdaters.multibar()"><option value="all">All Modules</option></select></div>
-        <div class="ctrl"><label>Group By</label><select id="multibar-group" onchange="chartUpdaters.multibar()"><option value="user">User</option><option value="module">Module</option></select></div>
-        <div class="ctrl"><label>Orientation</label><select id="multibar-orient" onchange="chartUpdaters.multibar()"><option value="vertical">Vertical</option><option value="horizontal">Horizontal</option></select></div>
-        <label class="ctrl-toggle"><input type="checkbox" id="multibar-stacked" onchange="chartUpdaters.multibar()"> Stacked</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="multibar-avg" onchange="chartUpdaters.multibar()"> Avg Line</label>
-      </div>
-      <div class="panel-body"><div id="chart-4" class="chart-container"></div></div>
-    </div>
-    <!-- 5. Box/Violin -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">5</span> Box Plot / Violin Plot</h3><span class="panel-badge">Comparison</span></div>
-      <div class="panel-controls">
-        <div class="ctrl"><label>Type</label><select id="boxplot-type" onchange="chartUpdaters.boxplot()"><option value="box">Box Plot</option><option value="violin">Violin Plot</option></select></div>
-        <label class="ctrl-toggle"><input type="checkbox" id="boxplot-points" onchange="chartUpdaters.boxplot()"> Show Points</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="boxplot-quartiles" checked onchange="chartUpdaters.boxplot()"> Quartile Lines</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="boxplot-validated" onchange="chartUpdaters.boxplot()"> Compare Validated</label>
-      </div>
-      <div class="panel-body"><div id="chart-5" class="chart-container"></div></div>
-    </div>
-    <!-- 6. Radar -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">6</span> Radar/Spider Chart</h3><span class="panel-badge">Comparison</span></div>
-      <div class="panel-controls">
-        <div class="ctrl"><label>Users (1-6)</label><input type="range" id="radar-users" min="1" max="6" value="3" oninput="this.nextElementSibling.textContent=this.value;chartUpdaters.radar()"><span class="range-value">3</span></div>
-        <div class="ctrl"><label>Metric</label><select id="radar-metric" onchange="chartUpdaters.radar()"><option value="hours">Hours</option><option value="marks">Marks</option><option value="completion">Completion</option></select></div>
-        <div class="ctrl"><label>Fill Opacity</label><input type="range" id="radar-opacity" min="0" max="1" step="0.1" value="0.2" oninput="this.nextElementSibling.textContent=this.value;chartUpdaters.radar()"><span class="range-value">0.2</span></div>
-        <label class="ctrl-toggle"><input type="checkbox" id="radar-normalize" onchange="chartUpdaters.radar()"> Normalize 0-100</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="radar-grid" checked onchange="chartUpdaters.radar()"> Grid Lines</label>
-      </div>
-      <div class="panel-body"><div id="chart-6" class="chart-container"></div></div>
-    </div>
-  </div>
-</div>
 
-<!-- ===== PERFORMANCE SECTION ===== -->
-<div class="section" data-section="performance">
-  <div class="section-title">🎯 Performance Visualizations</div>
+<!-- ===== STATISTICAL SECTION (includes Funnel) ===== -->
+<div class="section" data-section="statistical">
+  <div class="section-title">📊 Statistical Visualizations — Module Completion Time Analysis</div>
   <div class="grid">
-    <!-- 7. Scatter Plot -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">7</span> Scatter Plot - Hours vs Score</h3><span class="panel-badge">Performance</span></div>
-      <div class="panel-controls">
-        <div class="ctrl"><label>Color By</label><select id="scatter-color" onchange="chartUpdaters.scatter()"><option value="user">User</option><option value="module">Module</option><option value="status">Status</option></select></div>
-        <div class="ctrl"><label>Bubble Size</label><select id="scatter-bubble" onchange="chartUpdaters.scatter()"><option value="fixed">Fixed</option><option value="module">By Module</option></select></div>
-        <label class="ctrl-toggle"><input type="checkbox" id="scatter-trend" onchange="chartUpdaters.scatter()"> Trend Line</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="scatter-validated" onchange="chartUpdaters.scatter()"> Validated Only</label>
-      </div>
-      <div class="panel-body"><div id="chart-7" class="chart-container"></div></div>
-    </div>
-    <!-- 8. Efficiency -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">8</span> Efficiency Score Chart</h3><span class="panel-badge">Performance</span></div>
-      <div class="panel-controls">
-        <div class="ctrl"><label>Sort</label><select id="efficiency-sort" onchange="chartUpdaters.efficiency()"><option value="efficiency">Efficiency</option><option value="hours">Total Hours</option><option value="projects">Projects</option></select></div>
-        <div class="ctrl"><label>Min Projects</label><input type="number" id="efficiency-min-proj" value="1" min="1" max="20" onchange="chartUpdaters.efficiency()"></div>
-        <div class="ctrl"><label>Threshold</label><input type="range" id="efficiency-threshold" min="0" max="10" step="0.1" value="0" oninput="this.nextElementSibling.textContent=this.value;chartUpdaters.efficiency()"><span class="range-value">0</span></div>
-        <label class="ctrl-toggle"><input type="checkbox" id="efficiency-validated" onchange="chartUpdaters.efficiency()"> Validated Only</label>
-      </div>
-      <div class="panel-body"><div id="chart-8" class="chart-container"></div></div>
-    </div>
-    <!-- 9. Gauge -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">9</span> Completion Rate Gauge</h3><span class="panel-badge">Performance</span></div>
-      <div class="panel-controls">
-        <div class="ctrl"><label>View</label><select id="gauge-mode" onchange="chartUpdaters.gauge()"><option value="aggregate">Aggregate</option><option value="per_user">Per User</option></select></div>
-        <label class="ctrl-toggle"><input type="checkbox" id="gauge-in-progress" onchange="chartUpdaters.gauge()"> Include In Progress</label>
-      </div>
-      <div class="panel-body"><div id="chart-9" class="chart-container"></div></div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== FLOW SECTION ===== -->
-<div class="section" data-section="flow">
-  <div class="section-title">🔄 Flow & Progression Visualizations</div>
-  <div class="grid">
-    <!-- 10. Sankey -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">10</span> Sankey Diagram</h3><span class="panel-badge">Flow</span></div>
-      <div class="panel-controls">
-        <div class="ctrl"><label>Min Flow</label><input type="range" id="sankey-min-flow" min="1" max="20" value="1" oninput="this.nextElementSibling.textContent=this.value;chartUpdaters.sankey()"><span class="range-value">1</span></div>
-        <label class="ctrl-toggle"><input type="checkbox" id="sankey-color" checked onchange="chartUpdaters.sankey()"> Color by Success</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="sankey-validated" onchange="chartUpdaters.sankey()"> Validated Only</label>
-      </div>
-      <div class="panel-body"><div id="chart-10" class="chart-container"></div></div>
-    </div>
     <!-- 11. Funnel -->
     <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">11</span> Funnel Chart</h3><span class="panel-badge">Flow</span></div>
+      <div class="panel-header"><h3><span class="panel-number">11</span> Module Dropout Funnel</h3><span class="panel-badge">Statistical</span></div>
       <div class="panel-controls">
         <label class="ctrl-toggle"><input type="checkbox" id="funnel-pct" onchange="chartUpdaters.funnel()"> Show Percentages</label>
         <div class="ctrl"><label>Highlight User</label><select id="funnel-highlight" onchange="chartUpdaters.funnel()"><option value="">None</option></select></div>
       </div>
       <div class="panel-body"><div id="chart-11" class="chart-container"></div></div>
     </div>
-    <!-- 12. Stream -->
+    <!-- Module Progress Distribution -->
     <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">12</span> Stream Graph</h3><span class="panel-badge">Flow</span></div>
+      <div class="panel-header"><h3><span class="panel-number">30</span> Module Progress Distribution</h3><span class="panel-badge">Statistical</span></div>
       <div class="panel-controls">
-        <label class="ctrl-toggle"><input type="checkbox" id="stream-normalize" onchange="chartUpdaters.stream()"> Normalize Heights</label>
+        <div class="ctrl"><label>View</label><select id="modprogress-view" onchange="chartUpdaters.moduleprogress()"><option value="stage">% at Each Module Stage</option><option value="completed">% Who Completed Each Module</option></select></div>
       </div>
-      <div class="panel-body"><div id="chart-12" class="chart-container"></div></div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== STATISTICAL SECTION ===== -->
-<div class="section" data-section="statistical">
-  <div class="section-title">📊 Statistical Visualizations</div>
-  <div class="grid">
-    <!-- 13. Histogram -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">13</span> Histogram - Hour Distribution</h3><span class="panel-badge">Statistical</span></div>
-      <div class="panel-controls">
-        <div class="ctrl"><label>Bin Size</label><input type="range" id="histogram-bins" min="1" max="20" value="5" oninput="this.nextElementSibling.textContent=this.value+'h';chartUpdaters.histogram()"><span class="range-value">5h</span></div>
-        <label class="ctrl-toggle"><input type="checkbox" id="histogram-split" onchange="chartUpdaters.histogram()"> Split by Module</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="histogram-mean" checked onchange="chartUpdaters.histogram()"> Mean Line</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="histogram-median" onchange="chartUpdaters.histogram()"> Median Line</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="histogram-normal" onchange="chartUpdaters.histogram()"> Normal Curve</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="histogram-log" onchange="chartUpdaters.histogram()"> Log Scale</label>
-      </div>
-      <div class="panel-body"><div id="chart-13" class="chart-container"></div></div>
-    </div>
-    <!-- 14. CDF -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">14</span> Cumulative Distribution (CDF)</h3><span class="panel-badge">Statistical</span></div>
-      <div class="panel-controls">
-        <label class="ctrl-toggle"><input type="checkbox" id="cdf-module" onchange="chartUpdaters.cdf()"> Per Module</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="cdf-p50" checked onchange="chartUpdaters.cdf()"> P50</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="cdf-p75" onchange="chartUpdaters.cdf()"> P75</label>
-        <label class="ctrl-toggle"><input type="checkbox" id="cdf-p90" onchange="chartUpdaters.cdf()"> P90</label>
-      </div>
-      <div class="panel-body"><div id="chart-14" class="chart-container"></div></div>
-    </div>
-    <!-- 15. Correlation Matrix -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">15</span> Correlation Matrix</h3><span class="panel-badge">Statistical</span></div>
-      <div class="panel-controls">
-        <label class="ctrl-toggle"><input type="checkbox" id="corr-values" checked onchange="chartUpdaters.correlation()"> Show Values</label>
-      </div>
-      <div class="panel-body"><div id="chart-15" class="chart-container"></div></div>
+      <div class="panel-body"><div id="chart-30" class="chart-container"></div></div>
     </div>
   </div>
 </div>
@@ -317,7 +144,16 @@
 <!-- ===== LEADERBOARD SECTION ===== -->
 <div class="section" data-section="leaderboard">
   <div class="section-title">🏆 Leaderboard Visualizations</div>
-  <div class="grid">
+  <div class="grid grid-full">
+    <!-- 31. Top N Bar Chart -->
+    <div class="panel">
+      <div class="panel-header"><h3><span class="panel-number">31</span> Top Students Bar Chart</h3><span class="panel-badge">Leaderboard</span></div>
+      <div class="panel-controls">
+        <div class="ctrl"><label>Category</label><select id="topbar-category" onchange="chartUpdaters.topbar()"><option value="fastest">Fastest to Finish</option><option value="hours">Most Hours</option><option value="marks">Highest Marks</option><option value="modules">Most Modules</option></select></div>
+        <div class="ctrl"><label>Show Top</label><select id="topbar-n" onchange="chartUpdaters.topbar()"><option value="5">5</option><option value="10" selected>10</option><option value="15">15</option><option value="20">20</option></select></div>
+      </div>
+      <div class="panel-body"><div id="chart-31" class="chart-container"></div></div>
+    </div>
     <!-- 16. Ranking Table -->
     <div class="panel">
       <div class="panel-header"><h3><span class="panel-number">16</span> Ranking Table with Sparklines</h3><span class="panel-badge">Leaderboard</span></div>
@@ -325,56 +161,6 @@
         <div class="ctrl"><label>Sort By</label><select id="ranking-sort" onchange="chartUpdaters.ranking()"><option value="hours">Hours</option><option value="marks">Marks</option><option value="completion">Completion</option><option value="efficiency">Efficiency</option><option value="projects">Projects</option></select></div>
       </div>
       <div class="panel-body" id="chart-16"></div>
-    </div>
-    <!-- 17. Bump Chart -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">17</span> Bump Chart (Rank Over Time)</h3><span class="panel-badge">Leaderboard</span></div>
-      <div class="panel-controls">
-        <div class="ctrl"><label>Top N</label><input type="range" id="bump-top" min="3" max="20" value="10" oninput="this.nextElementSibling.textContent=this.value;chartUpdaters.bump()"><span class="range-value">10</span></div>
-        <div class="ctrl"><label>Highlight</label><select id="bump-highlight" onchange="chartUpdaters.bump()"><option value="">None</option></select></div>
-      </div>
-      <div class="panel-body"><div id="chart-17" class="chart-container"></div></div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== ADVANCED SECTION ===== -->
-<div class="section" data-section="advanced">
-  <div class="section-title">🎨 Advanced Visualizations</div>
-  <div class="grid">
-    <!-- 18. Treemap -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">18</span> Treemap - Hours by User & Module</h3><span class="panel-badge">Advanced</span></div>
-      <div class="panel-controls">
-        <div class="ctrl"><label>Color By</label><select id="treemap-color" onchange="chartUpdaters.treemap()"><option value="module">Module</option><option value="status">Status</option><option value="efficiency">Efficiency</option></select></div>
-        <div class="ctrl"><label>Min Size</label><input type="range" id="treemap-min" min="0" max="20" value="0" oninput="this.nextElementSibling.textContent=this.value+'h';chartUpdaters.treemap()"><span class="range-value">0h</span></div>
-      </div>
-      <div class="panel-body"><div id="chart-18" class="chart-container"></div></div>
-    </div>
-    <!-- 19. Sunburst -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">19</span> Sunburst Chart</h3><span class="panel-badge">Advanced</span></div>
-      <div class="panel-controls">
-        <div class="ctrl"><label>Color By</label><select id="sunburst-color" onchange="chartUpdaters.sunburst()"><option value="hours">Hours</option><option value="status">Status</option><option value="marks">Marks</option></select></div>
-        <label class="ctrl-toggle"><input type="checkbox" id="sunburst-pct" onchange="chartUpdaters.sunburst()"> Show %</label>
-      </div>
-      <div class="panel-body"><div id="chart-19" class="chart-container"></div></div>
-    </div>
-    <!-- 20. Parallel Coordinates -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">20</span> Parallel Coordinates</h3><span class="panel-badge">Advanced</span></div>
-      <div class="panel-controls">
-        <div class="ctrl"><label>Color By</label><select id="parallel-color" onchange="chartUpdaters.parallel()"><option value="hours">Total Hours</option><option value="completion">Completion</option><option value="marks">Avg Marks</option></select></div>
-      </div>
-      <div class="panel-body"><div id="chart-20" class="chart-container"></div></div>
-    </div>
-    <!-- 21. Network Graph -->
-    <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">21</span> Network Graph</h3><span class="panel-badge">Advanced</span></div>
-      <div class="panel-controls">
-        <div class="ctrl"><label>Similarity</label><input type="range" id="network-threshold" min="0" max="1" step="0.05" value="0.5" oninput="this.nextElementSibling.textContent=this.value;chartUpdaters.network()"><span class="range-value">0.5</span></div>
-      </div>
-      <div class="panel-body"><div id="chart-21" class="chart-container"></div></div>
     </div>
   </div>
 </div>
@@ -408,6 +194,9 @@
 <!-- ===== CAMPUS SECTION ===== -->
 <div class="section" data-section="campus">
   <div class="section-title">🏫 Campus Comparison</div>
+  <div class="panel-controls" style="margin-bottom:12px">
+    <div class="ctrl"><label>Campuses to Compare</label><input type="text" class="select-search" placeholder="Search..." oninput="filterSelectOptions(this,'campus-select')"><div class="dropdown-actions"><button onclick="selectAllOptions('campus-select')">Select All</button><button onclick="deselectAllOptions('campus-select')">Deselect All</button></div><select id="campus-select" multiple onchange="updateCampusSection()"></select></div>
+  </div>
   <div class="grid grid-full">
     <div class="panel">
       <div class="panel-header"><h3><span class="panel-number">25</span> Campus Comparison</h3><span class="panel-badge">Campus</span></div>
@@ -421,6 +210,7 @@
           <option value="total_hours">Total Hours</option>
           <option value="efficiency">Efficiency</option>
           <option value="projects_per_user">Avg Projects/User</option>
+          <option value="avg_completion_time">Avg Completion Time (days)</option>
           <option value="radar">Radar Overview</option>
         </select></div>
         <label class="ctrl-toggle"><input type="checkbox" id="campus-show-all" checked onchange="chartUpdaters.campus()"> Show Global Average</label>
@@ -428,7 +218,7 @@
       <div class="panel-body"><div id="chart-25" class="chart-container"></div></div>
     </div>
     <div class="panel">
-      <div class="panel-header"><h3><span class="panel-number">28</span> Promo Completion — % who finished all modules</h3><span class="panel-badge">Campus</span></div>
+      <div class="panel-header"><h3><span class="panel-number">28</span> Promo Completion — % who finished all modules (New Common Core)</h3><span class="panel-badge">Campus</span></div>
       <div class="panel-body"><div id="chart-28" class="chart-container"></div></div>
     </div>
     <div class="panel">
@@ -453,7 +243,8 @@
   populateGlobalFilters();
   applyGlobalFilters();
   updateHeaderStats();
-  updateAllCharts();
+  // Start on KPI section for fast initial load
+  showSection('kpi');
 })();
 </script>
 </body>
