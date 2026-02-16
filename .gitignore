@@ -56,3 +56,6 @@ time_distribution.png
 
 # Cache directory
 .cache/
+
+# API key usage tracking
+.api_key_usage.json
