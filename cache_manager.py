@@ -168,6 +168,52 @@ class CacheManager:
         except (json.JSONDecodeError, IOError):
             return None
 
+    def get_oldest_matching_timestamp(self, endpoint_prefix: str) -> Optional[str]:
+        """
+        Scan all cache files and return the oldest timestamp among entries
+        whose stored endpoint starts with *endpoint_prefix*.
+
+        This is useful for per-entity caches (e.g. ``/v2/projects/*/projects_users``)
+        where many cache files share the same endpoint prefix pattern.
+
+        Args:
+            endpoint_prefix: Prefix to match against the ``endpoint`` field
+                             stored inside each cache JSON file.
+
+        Returns:
+            The oldest ISO timestamp string found, or None if no matches.
+        """
+        oldest: Optional[str] = None
+        for cache_file in self.cache_dir.glob("*.json"):
+            try:
+                with open(cache_file, 'r') as f:
+                    data = json.load(f)
+                ep = data.get('endpoint', '')
+                ts = data.get('timestamp')
+                if ep.startswith(endpoint_prefix) and ts:
+                    if oldest is None or ts < oldest:
+                        oldest = ts
+            except (json.JSONDecodeError, IOError):
+                continue
+        return oldest
+
+    def invalidate_matching(self, endpoint_prefix: str):
+        """
+        Delete all cache entries whose stored endpoint starts with
+        *endpoint_prefix*.
+
+        Args:
+            endpoint_prefix: Prefix to match against the ``endpoint`` field.
+        """
+        for cache_file in self.cache_dir.glob("*.json"):
+            try:
+                with open(cache_file, 'r') as f:
+                    data = json.load(f)
+                if data.get('endpoint', '').startswith(endpoint_prefix):
+                    cache_file.unlink()
+            except (json.JSONDecodeError, IOError):
+                continue
+
     def get_cache_stats(self) -> Dict[str, Any]:
         """
         Get statistics about the cache

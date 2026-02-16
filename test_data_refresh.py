@@ -48,14 +48,22 @@ def test_data_freshness():
     # Populate some cache entries
     client.cache.set("/v2/campus", [{"id": 1}], {'paginated': 'all'})
     client.cache.set("/v2/cursus/21/projects", [{"id": 100}], {'paginated': 'all'})
+    client.cache.set("/v2/projects/42/projects_users", [{"id": 1}], {'paginated': 'all'})
+    client.cache.set("/v2/users/123/locations", [{"begin_at": "2025-01-01"}], {'paginated': 'all'})
 
     freshness = client.get_data_freshness(campus_id=None, cursus_id=21)
     assert 'Campuses' in freshness
     assert 'Cursus Projects' in freshness
+    assert 'Project Users' in freshness
+    assert 'User Locations' in freshness
     assert freshness['Campuses'] is not None
     assert freshness['Cursus Projects'] is not None
+    assert freshness['Project Users'] is not None
+    assert freshness['User Locations'] is not None
     print(f"  ✓ Campuses timestamp: {freshness['Campuses']}")
     print(f"  ✓ Projects timestamp: {freshness['Cursus Projects']}")
+    print(f"  ✓ Project Users timestamp: {freshness['Project Users']}")
+    print(f"  ✓ User Locations timestamp: {freshness['User Locations']}")
 
     # With campus_id, should also include Campus Users
     freshness2 = client.get_data_freshness(campus_id=42, cursus_id=21, begin_year=2025)
@@ -238,6 +246,138 @@ def test_concurrent_projects_fetch():
     print("  ✓ Concurrent fetch returned correct project data for all users")
 
 
+def test_oldest_matching_timestamp():
+    """Test get_oldest_matching_timestamp scans cache files by endpoint prefix"""
+    print("\nTesting oldest matching timestamp...")
+
+    cache = CacheManager(cache_dir=".test_cache", cache_ttl_hours=1)
+
+    # No entries yet
+    ts = cache.get_oldest_matching_timestamp("/v2/projects/")
+    assert ts is None, "Should return None when no matches"
+    print("  ✓ Returns None when no matches")
+
+    # Add two project-user entries with different timestamps
+    cache.set("/v2/projects/42/projects_users", [{"id": 1}], {'paginated': 'all'})
+    import time as _time
+    _time.sleep(0.05)  # ensure different timestamp
+    cache.set("/v2/projects/99/projects_users", [{"id": 2}], {'paginated': 'all'})
+
+    ts = cache.get_oldest_matching_timestamp("/v2/projects/")
+    assert ts is not None
+    # The oldest should be the first one we set
+    ts42 = cache.get_cache_timestamp("/v2/projects/42/projects_users", {'paginated': 'all'})
+    assert ts == ts42, f"Should return oldest: {ts} vs {ts42}"
+    print(f"  ✓ Returns oldest timestamp: {ts}")
+
+    # Non-matching prefix
+    ts_none = cache.get_oldest_matching_timestamp("/v2/nonexistent/")
+    assert ts_none is None
+    print("  ✓ Non-matching prefix returns None")
+
+    # Cleanup
+    cache.clear()
+    if os.path.exists(".test_cache"):
+        shutil.rmtree(".test_cache")
+
+
+def test_invalidate_matching():
+    """Test invalidate_matching removes all cache files for a prefix"""
+    print("\nTesting invalidate matching...")
+
+    cache = CacheManager(cache_dir=".test_cache", cache_ttl_hours=1)
+
+    # Add entries with different prefixes
+    cache.set("/v2/projects/42/projects_users", [{"id": 1}], {'paginated': 'all'})
+    cache.set("/v2/projects/99/projects_users", [{"id": 2}], {'paginated': 'all'})
+    cache.set("/v2/users/123/locations", [{"begin_at": "x"}], {'paginated': 'all'})
+    cache.set("/v2/campus", [{"id": 1}], {'paginated': 'all'})
+
+    # Invalidate project entries
+    cache.invalidate_matching("/v2/projects/")
+
+    # Project entries should be gone
+    assert cache.get("/v2/projects/42/projects_users", {'paginated': 'all'}) is None
+    assert cache.get("/v2/projects/99/projects_users", {'paginated': 'all'}) is None
+    print("  ✓ Project entries invalidated")
+
+    # Other entries should remain
+    assert cache.get("/v2/users/123/locations", {'paginated': 'all'}) is not None
+    assert cache.get("/v2/campus", {'paginated': 'all'}) is not None
+    print("  ✓ Unrelated entries preserved")
+
+    # Cleanup
+    cache.clear()
+    if os.path.exists(".test_cache"):
+        shutil.rmtree(".test_cache")
+
+
+def test_prompt_refresh_project_users():
+    """Test refreshing 'Project Users' category invalidates project caches"""
+    print("\nTesting refresh of Project Users category...")
+
+    from main import prompt_data_refresh
+
+    client = API42Client("id1", "s1", use_cache=True, cache_ttl_hours=1)
+
+    # Populate project-user cache entries
+    client.cache.set("/v2/projects/42/projects_users", [{"id": 1}], {'paginated': 'all'})
+    client.cache.set("/v2/projects/99/projects_users", [{"id": 2}], {'paginated': 'all'})
+    client.cache.set("/v2/campus", [{"id": 1}], {'paginated': 'all'})
+
+    # Find which index 'Project Users' is
+    freshness = client.get_data_freshness()
+    categories = list(freshness.keys())
+    idx = categories.index('Project Users') + 1
+
+    with patch('builtins.input', return_value=str(idx)):
+        refreshed = prompt_data_refresh(client)
+
+    assert 'Project Users' in refreshed
+    assert client.cache.get("/v2/projects/42/projects_users", {'paginated': 'all'}) is None
+    assert client.cache.get("/v2/projects/99/projects_users", {'paginated': 'all'}) is None
+    # Campus should be untouched
+    assert client.cache.get("/v2/campus", {'paginated': 'all'}) is not None
+    print("  ✓ Project Users refresh invalidated project caches only")
+
+    # Cleanup
+    client.cache.clear()
+    shutil.rmtree(".cache", ignore_errors=True)
+
+
+def test_prompt_refresh_user_locations():
+    """Test refreshing 'User Locations' category invalidates location caches"""
+    print("\nTesting refresh of User Locations category...")
+
+    from main import prompt_data_refresh
+
+    client = API42Client("id1", "s1", use_cache=True, cache_ttl_hours=1)
+
+    # Populate user location cache entries
+    client.cache.set("/v2/users/123/locations", [{"begin_at": "x"}], {'paginated': 'all'})
+    client.cache.set("/v2/users/456/locations", [{"begin_at": "y"}], {'paginated': 'all'})
+    client.cache.set("/v2/campus", [{"id": 1}], {'paginated': 'all'})
+
+    # Find which index 'User Locations' is
+    freshness = client.get_data_freshness()
+    categories = list(freshness.keys())
+    idx = categories.index('User Locations') + 1
+
+    with patch('builtins.input', return_value=str(idx)):
+        refreshed = prompt_data_refresh(client)
+
+    assert 'User Locations' in refreshed
+    assert client.cache.get("/v2/users/123/locations", {'paginated': 'all'}) is None
+    assert client.cache.get("/v2/users/456/locations", {'paginated': 'all'}) is None
+    # Campus should be untouched
+    assert client.cache.get("/v2/campus", {'paginated': 'all'}) is not None
+    print("  ✓ User Locations refresh invalidated location caches only")
+
+    # Cleanup
+    client.cache.clear()
+    shutil.rmtree(".cache", ignore_errors=True)
+
+
 def main():
     """Run all tests"""
     print("=" * 60)
@@ -255,6 +395,10 @@ def main():
         test_prompt_data_refresh_no_cache,
         test_concurrent_locations_fetch,
         test_concurrent_projects_fetch,
+        test_oldest_matching_timestamp,
+        test_invalidate_matching,
+        test_prompt_refresh_project_users,
+        test_prompt_refresh_user_locations,
     ]
 
     failed = 0

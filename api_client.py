@@ -542,6 +542,16 @@ class API42Client:
             f"/v2/cursus/{cursus_id}/projects", {'paginated': 'all'}
         )
 
+        # Project Users (per-project caches)
+        freshness['Project Users'] = self.cache.get_oldest_matching_timestamp(
+            "/v2/projects/"
+        )
+
+        # User Locations / Logtime (per-user caches)
+        freshness['User Locations'] = self.cache.get_oldest_matching_timestamp(
+            "/v2/users/"
+        )
+
         return freshness
 
     # --- Refresh methods ---

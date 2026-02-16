@@ -154,6 +154,14 @@ def prompt_data_refresh(client: API42Client, campus_id: int = None, cursus_id: i
                         client.refresh_campus_users(campus_id, cursus_id, begin_year)
                 elif cat == 'Cursus Projects':
                     client.refresh_cursus_projects(cursus_id)
+                elif cat == 'Project Users':
+                    if client.cache:
+                        client.cache.invalidate_matching("/v2/projects/")
+                        print("    ✓ Cleared all cached project-users data")
+                elif cat == 'User Locations':
+                    if client.cache:
+                        client.cache.invalidate_matching("/v2/users/")
+                        print("    ✓ Cleared all cached user-locations data")
                 refreshed.append(cat)
             else:
                 print(f"  ⚠ Invalid number: {token}")
