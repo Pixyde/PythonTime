@@ -168,17 +168,19 @@ class CacheManager:
         except (json.JSONDecodeError, IOError):
             return None
 
-    def get_oldest_matching_timestamp(self, endpoint_prefix: str) -> Optional[str]:
+    def get_oldest_matching_timestamp(self, endpoint_prefix: str, endpoint_suffix: str = None) -> Optional[str]:
         """
         Scan all cache files and return the oldest timestamp among entries
-        whose stored endpoint starts with *endpoint_prefix*.
+        whose stored endpoint starts with *endpoint_prefix* and optionally
+        ends with *endpoint_suffix*.
 
         This is useful for per-entity caches (e.g. ``/v2/projects/*/projects_users``)
-        where many cache files share the same endpoint prefix pattern.
+        where many cache files share the same endpoint pattern.
 
         Args:
             endpoint_prefix: Prefix to match against the ``endpoint`` field
                              stored inside each cache JSON file.
+            endpoint_suffix: Optional suffix to also match (e.g. ``/locations``).
 
         Returns:
             The oldest ISO timestamp string found, or None if no matches.
@@ -191,25 +193,31 @@ class CacheManager:
                 ep = data.get('endpoint', '')
                 ts = data.get('timestamp')
                 if ep.startswith(endpoint_prefix) and ts:
+                    if endpoint_suffix and not ep.endswith(endpoint_suffix):
+                        continue
                     if oldest is None or ts < oldest:
                         oldest = ts
             except (json.JSONDecodeError, IOError):
                 continue
         return oldest
 
-    def invalidate_matching(self, endpoint_prefix: str):
+    def invalidate_matching(self, endpoint_prefix: str, endpoint_suffix: str = None):
         """
         Delete all cache entries whose stored endpoint starts with
-        *endpoint_prefix*.
+        *endpoint_prefix* and optionally ends with *endpoint_suffix*.
 
         Args:
             endpoint_prefix: Prefix to match against the ``endpoint`` field.
+            endpoint_suffix: Optional suffix to also match.
         """
         for cache_file in self.cache_dir.glob("*.json"):
             try:
                 with open(cache_file, 'r') as f:
                     data = json.load(f)
-                if data.get('endpoint', '').startswith(endpoint_prefix):
+                ep = data.get('endpoint', '')
+                if ep.startswith(endpoint_prefix):
+                    if endpoint_suffix and not ep.endswith(endpoint_suffix):
+                        continue
                     cache_file.unlink()
             except (json.JSONDecodeError, IOError):
                 continue

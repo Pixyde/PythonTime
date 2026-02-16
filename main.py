@@ -160,7 +160,7 @@ def prompt_data_refresh(client: API42Client, campus_id: int = None, cursus_id: i
                         print("    ✓ Cleared all cached project-users data")
                 elif cat == 'User Locations':
                     if client.cache:
-                        client.cache.invalidate_matching("/v2/users/")
+                        client.cache.invalidate_matching("/v2/users/", endpoint_suffix="/locations")
                         print("    ✓ Cleared all cached user-locations data")
                 refreshed.append(cat)
             else:

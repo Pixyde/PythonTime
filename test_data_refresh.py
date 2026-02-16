@@ -291,6 +291,7 @@ def test_invalidate_matching():
     cache.set("/v2/projects/42/projects_users", [{"id": 1}], {'paginated': 'all'})
     cache.set("/v2/projects/99/projects_users", [{"id": 2}], {'paginated': 'all'})
     cache.set("/v2/users/123/locations", [{"begin_at": "x"}], {'paginated': 'all'})
+    cache.set("/v2/users/123/projects_users", [{"project": "x"}], {'paginated': 'all'})
     cache.set("/v2/campus", [{"id": 1}], {'paginated': 'all'})
 
     # Invalidate project entries
@@ -303,8 +304,15 @@ def test_invalidate_matching():
 
     # Other entries should remain
     assert cache.get("/v2/users/123/locations", {'paginated': 'all'}) is not None
+    assert cache.get("/v2/users/123/projects_users", {'paginated': 'all'}) is not None
     assert cache.get("/v2/campus", {'paginated': 'all'}) is not None
     print("  ✓ Unrelated entries preserved")
+
+    # Invalidate only user locations (with suffix filter)
+    cache.invalidate_matching("/v2/users/", endpoint_suffix="/locations")
+    assert cache.get("/v2/users/123/locations", {'paginated': 'all'}) is None
+    assert cache.get("/v2/users/123/projects_users", {'paginated': 'all'}) is not None
+    print("  ✓ Suffix filter: only locations invalidated, projects_users preserved")
 
     # Cleanup
     cache.clear()
@@ -346,16 +354,17 @@ def test_prompt_refresh_project_users():
 
 
 def test_prompt_refresh_user_locations():
-    """Test refreshing 'User Locations' category invalidates location caches"""
+    """Test refreshing 'User Locations' category invalidates location caches only"""
     print("\nTesting refresh of User Locations category...")
 
     from main import prompt_data_refresh
 
     client = API42Client("id1", "s1", use_cache=True, cache_ttl_hours=1)
 
-    # Populate user location cache entries
+    # Populate user location and user project cache entries
     client.cache.set("/v2/users/123/locations", [{"begin_at": "x"}], {'paginated': 'all'})
     client.cache.set("/v2/users/456/locations", [{"begin_at": "y"}], {'paginated': 'all'})
+    client.cache.set("/v2/users/123/projects_users", [{"project": "p"}], {'paginated': 'all'})
     client.cache.set("/v2/campus", [{"id": 1}], {'paginated': 'all'})
 
     # Find which index 'User Locations' is
@@ -367,11 +376,14 @@ def test_prompt_refresh_user_locations():
         refreshed = prompt_data_refresh(client)
 
     assert 'User Locations' in refreshed
+    # Location caches should be gone
     assert client.cache.get("/v2/users/123/locations", {'paginated': 'all'}) is None
     assert client.cache.get("/v2/users/456/locations", {'paginated': 'all'}) is None
+    # User projects cache should be preserved (suffix filter)
+    assert client.cache.get("/v2/users/123/projects_users", {'paginated': 'all'}) is not None
     # Campus should be untouched
     assert client.cache.get("/v2/campus", {'paginated': 'all'}) is not None
-    print("  ✓ User Locations refresh invalidated location caches only")
+    print("  ✓ User Locations refresh invalidated only location caches")
 
     # Cleanup
     client.cache.clear()

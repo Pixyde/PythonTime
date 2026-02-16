@@ -547,9 +547,9 @@ class API42Client:
             "/v2/projects/"
         )
 
-        # User Locations / Logtime (per-user caches)
+        # User Locations / Logtime (per-user caches — match /locations suffix only)
         freshness['User Locations'] = self.cache.get_oldest_matching_timestamp(
-            "/v2/users/"
+            "/v2/users/", endpoint_suffix="/locations"
         )
 
         return freshness
