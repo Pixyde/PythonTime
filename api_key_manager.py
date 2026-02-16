@@ -16,6 +16,7 @@ class ApiKeyManager:
 
     MAX_REQUESTS_PER_HOUR = 1200
     USAGE_FILE = ".api_key_usage.json"
+    SECONDS_PER_HOUR = 3600
 
     def __init__(self, keys: List[Tuple[str, str]], usage_file: str = None):
         """
@@ -50,7 +51,7 @@ class ApiKeyManager:
                 now = time.time()
                 pruned = {}
                 for key_idx, timestamps in data.items():
-                    pruned[key_idx] = [t for t in timestamps if now - t < 3600]
+                    pruned[key_idx] = [t for t in timestamps if now - t < self.SECONDS_PER_HOUR]
                 return pruned
             except (json.JSONDecodeError, IOError):
                 return {}
@@ -69,7 +70,7 @@ class ApiKeyManager:
         now = time.time()
         key = str(key_idx)
         if key in self.usage:
-            self.usage[key] = [t for t in self.usage[key] if now - t < 3600]
+            self.usage[key] = [t for t in self.usage[key] if now - t < self.SECONDS_PER_HOUR]
 
     def get_request_count(self, key_idx: int) -> int:
         """
