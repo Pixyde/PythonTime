@@ -53,15 +53,28 @@ def test_connection():
     """Test API connection and authentication"""
     load_dotenv()
     
-    client_id = os.getenv('CLIENT_ID')
-    client_secret = os.getenv('CLIENT_SECRET')
+    keys = []
+    idx = 1
+    while True:
+        cid = os.getenv(f'CLIENT_ID_{idx}')
+        csec = os.getenv(f'CLIENT_SECRET_{idx}')
+        if cid and csec:
+            keys.append((cid, csec))
+            idx += 1
+        else:
+            break
+    if not keys:
+        client_id = os.getenv('CLIENT_ID')
+        client_secret = os.getenv('CLIENT_SECRET')
+        if client_id and client_secret:
+            keys.append((client_id, client_secret))
     
-    if not client_id or not client_secret:
+    if not keys:
         print("\n✗ Error: Missing API credentials in .env file\n")
         return
     
-    print("\nTesting API connection...")
-    client = API42Client(client_id, client_secret, use_cache=False)
+    print(f"\nTesting API connection ({len(keys)} key(s))...")
+    client = API42Client(keys=keys, use_cache=False)
     
     if client.authenticate():
         print("✓ Successfully connected to 42 API\n")

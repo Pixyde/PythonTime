@@ -6,9 +6,10 @@ Handles authentication and API requests to the 42 API
 import requests
 import time
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 from cache_manager import CacheManager
+from api_key_manager import ApiKeyManager
 
 
 class API42Client:
@@ -17,18 +18,29 @@ class API42Client:
     BASE_URL = "https://api.intra.42.fr"
     TOKEN_REFRESH_BUFFER_SECONDS = 60  # Refresh token 60 seconds before expiry
     
-    def __init__(self, client_id: str, client_secret: str, use_cache: bool = True, cache_ttl_hours: int = 24):
+    def __init__(self, client_id: str = None, client_secret: str = None, use_cache: bool = True, cache_ttl_hours: int = 24,
+                 keys: List[Tuple[str, str]] = None):
         """
         Initialize the 42 API client
         
         Args:
-            client_id: OAuth2 client ID
-            client_secret: OAuth2 client secret
+            client_id: OAuth2 client ID (single-key mode, ignored when keys is provided)
+            client_secret: OAuth2 client secret (single-key mode, ignored when keys is provided)
             use_cache: Whether to use caching (default: True)
             cache_ttl_hours: Cache time-to-live in hours (default: 24)
+            keys: List of (client_id, client_secret) tuples for multi-key mode
         """
-        self.client_id = client_id
-        self.client_secret = client_secret
+        if keys:
+            self.key_manager = ApiKeyManager(keys)
+        elif client_id and client_secret:
+            self.key_manager = ApiKeyManager([(client_id, client_secret)])
+        else:
+            raise ValueError("Provide either (client_id, client_secret) or keys list")
+
+        # Active key tracking
+        self._active_key_idx = None
+        self.client_id = None
+        self.client_secret = None
         self.access_token = None
         self.token_expires_at = 0
         self.use_cache = use_cache
@@ -36,11 +48,25 @@ class API42Client:
         
     def authenticate(self) -> bool:
         """
-        Authenticate with the 42 API using OAuth2
+        Authenticate with the 42 API using OAuth2.
+        Uses the currently selected key from the key manager.
         
         Returns:
             bool: True if authentication successful, False otherwise
         """
+        # Select the best available key
+        key_idx, client_id, client_secret = self.key_manager.select_key()
+        self._active_key_idx = key_idx
+        self.client_id = client_id
+        self.client_secret = client_secret
+
+        # Check if we already have a valid token for this key
+        token_info = self.key_manager.tokens.get(key_idx)
+        if token_info and time.time() < token_info['expires_at'] - self.TOKEN_REFRESH_BUFFER_SECONDS:
+            self.access_token = token_info['access_token']
+            self.token_expires_at = token_info['expires_at']
+            return True
+
         url = f"{self.BASE_URL}/oauth/token"
         data = {
             "grant_type": "client_credentials",
@@ -57,15 +83,26 @@ class API42Client:
             expires_in = token_data.get("expires_in", 7200)
             self.token_expires_at = time.time() + expires_in
             
-            print("✓ Successfully authenticated with 42 API")
+            # Store token for this key
+            self.key_manager.tokens[key_idx] = {
+                'access_token': self.access_token,
+                'expires_at': self.token_expires_at,
+            }
+            
+            print(f"✓ Successfully authenticated with 42 API (key {key_idx + 1}/{len(self.key_manager.keys)})")
             return True
         except requests.exceptions.RequestException as e:
             print(f"✗ Authentication failed: {e}")
             return False
     
     def _ensure_authenticated(self):
-        """Ensure we have a valid access token"""
-        if not self.access_token or time.time() >= self.token_expires_at - self.TOKEN_REFRESH_BUFFER_SECONDS:
+        """Ensure we have a valid access token, rotating keys as needed"""
+        key_idx, _, _ = self.key_manager.select_key()
+
+        # If best key changed or token expired, re-authenticate
+        if (key_idx != self._active_key_idx
+                or not self.access_token
+                or time.time() >= self.token_expires_at - self.TOKEN_REFRESH_BUFFER_SECONDS):
             self.authenticate()
     
     def _make_request(self, endpoint: str, params: Optional[Dict] = None, use_cache: bool = True) -> Optional[Dict]:
@@ -93,6 +130,9 @@ class API42Client:
         
         try:
             response = requests.get(url, headers=headers, params=params)
+            # Record the request against the active key
+            if self._active_key_idx is not None:
+                self.key_manager.record_request(self._active_key_idx)
             response.raise_for_status()
             data = response.json()
             
@@ -430,3 +470,58 @@ class API42Client:
         if self.cache:
             return self.cache.get_cache_stats()
         return None
+
+    def get_key_usage_stats(self) -> List[Dict]:
+        """Get usage statistics for all API keys"""
+        return self.key_manager.get_all_usage_stats()
+
+    # --- Refresh methods ---
+
+    def refresh_campuses(self) -> List[Dict]:
+        """Invalidate campus cache and re-fetch from API"""
+        if self.cache:
+            self.cache.invalidate("/v2/campus", {'paginated': 'all'})
+        return self.get_campuses()
+
+    def refresh_campus_users(self, campus_id: int, cursus_id: int = 21, begin_year: int = None) -> List[Dict]:
+        """Invalidate campus users cache and re-fetch from API"""
+        params = {
+            "filter[campus_id]": campus_id,
+            "filter[cursus_id]": cursus_id,
+            'paginated': 'all',
+        }
+        if begin_year:
+            params["range[begin_at]"] = f"{begin_year}-01-01T00:00:00.000Z,{begin_year}-12-31T23:59:59.999Z"
+        if self.cache:
+            self.cache.invalidate("/v2/cursus_users", params)
+        return self.get_campus_users(campus_id, cursus_id, begin_year)
+
+    def refresh_cursus_projects(self, cursus_id: int = 21) -> List[Dict]:
+        """Invalidate cursus projects cache and re-fetch from API"""
+        endpoint = f"/v2/cursus/{cursus_id}/projects"
+        if self.cache:
+            self.cache.invalidate(endpoint, {'paginated': 'all'})
+        return self.get_cursus_projects(cursus_id)
+
+    def refresh_project_users(self, project_id: int) -> List[Dict]:
+        """Invalidate project users cache and re-fetch from API"""
+        endpoint = f"/v2/projects/{project_id}/projects_users"
+        if self.cache:
+            self.cache.invalidate(endpoint, {'paginated': 'all'})
+        return self.get_project_users(project_id)
+
+    def refresh_user_projects(self, user_id: int) -> List[Dict]:
+        """Invalidate user projects cache and re-fetch from API"""
+        endpoint = f"/v2/users/{user_id}/projects_users"
+        if self.cache:
+            self.cache.invalidate(endpoint, {'paginated': 'all'})
+        return self.get_user_projects(user_id)
+
+    def refresh_user_locations(self, user_id: int, begin_at: Optional[str] = None, end_at: Optional[str] = None) -> List[Dict]:
+        """Alias for refetch_user_locations for API consistency"""
+        return self.refetch_user_locations(user_id, begin_at, end_at)
+
+    def refresh_all(self):
+        """Clear the entire cache, forcing all subsequent requests to hit the API"""
+        self.clear_cache()
+        print("✓ All cached data cleared — next requests will fetch fresh data from the API")

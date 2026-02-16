@@ -34,19 +34,37 @@ LOCATION_END_DATE = None    # End date for location data (ISO format)
 
 
 def load_config():
-    """Load configuration from .env file"""
+    """Load configuration from .env file, supporting multiple API key pairs"""
     load_dotenv()
     
-    client_id = os.getenv('CLIENT_ID')
-    client_secret = os.getenv('CLIENT_SECRET')
+    keys = []
     
-    if not client_id or not client_secret:
+    # Try numbered keys first: CLIENT_ID_1/CLIENT_SECRET_1, CLIENT_ID_2/CLIENT_SECRET_2, ...
+    idx = 1
+    while True:
+        cid = os.getenv(f'CLIENT_ID_{idx}')
+        csec = os.getenv(f'CLIENT_SECRET_{idx}')
+        if cid and csec:
+            keys.append((cid, csec))
+            idx += 1
+        else:
+            break
+    
+    # Fall back to single CLIENT_ID / CLIENT_SECRET
+    if not keys:
+        client_id = os.getenv('CLIENT_ID')
+        client_secret = os.getenv('CLIENT_SECRET')
+        if client_id and client_secret:
+            keys.append((client_id, client_secret))
+    
+    if not keys:
         raise ValueError(
             "Missing API credentials. Please create a .env file with CLIENT_ID and CLIENT_SECRET.\n"
+            "For multiple keys use CLIENT_ID_1/CLIENT_SECRET_1, CLIENT_ID_2/CLIENT_SECRET_2, etc.\n"
             "See .env.example for template."
         )
     
-    return client_id, client_secret
+    return keys
 
 
 def select_campus(client: API42Client) -> tuple:
@@ -557,11 +575,12 @@ def main():
     try:
         # Load configuration
         print("\nLoading configuration...")
-        client_id, client_secret = load_config()
+        keys = load_config()
+        print(f"Loaded {len(keys)} API key pair(s)")
         
         # Initialize API client with caching enabled
         print("Initializing 42 API client with caching...")
-        client = API42Client(client_id, client_secret, use_cache=True, cache_ttl_hours=24)
+        client = API42Client(keys=keys, use_cache=True, cache_ttl_hours=24)
         
         # Authenticate
         if not client.authenticate():
@@ -572,6 +591,15 @@ def main():
         cache_stats = client.get_cache_stats()
         if cache_stats:
             print(f"Cache: {cache_stats['total_files']} files, {cache_stats['total_size_mb']} MB")
+        
+        # Show API key usage stats
+        key_stats = client.get_key_usage_stats()
+        if len(key_stats) > 1:
+            print(f"\nAPI Key Usage ({len(key_stats)} keys):")
+            for ks in key_stats:
+                print(f"  Key {ks['key_index'] + 1} ({ks['client_id_prefix']}): "
+                      f"{ks['requests_last_hour']} requests last hour, "
+                      f"{ks['remaining']} remaining")
         
         # Let user select campus
         selected_campus_id, selected_campus_name = select_campus(client)
