@@ -6,8 +6,10 @@ Handles authentication and API requests to the 42 API
 import requests
 import time
 import os
+import threading
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from cache_manager import CacheManager
 from api_key_manager import ApiKeyManager
 
@@ -45,6 +47,7 @@ class API42Client:
         self.token_expires_at = 0
         self.use_cache = use_cache
         self.cache = CacheManager(cache_ttl_hours=cache_ttl_hours) if use_cache else None
+        self._auth_lock = threading.Lock()
         
     def authenticate(self) -> bool:
         """
@@ -97,13 +100,14 @@ class API42Client:
     
     def _ensure_authenticated(self):
         """Ensure we have a valid access token, rotating keys as needed"""
-        key_idx, _, _ = self.key_manager.select_key()
+        with self._auth_lock:
+            key_idx, _, _ = self.key_manager.select_key()
 
-        # If best key changed or token expired, re-authenticate
-        if (key_idx != self._active_key_idx
-                or not self.access_token
-                or time.time() >= self.token_expires_at - self.TOKEN_REFRESH_BUFFER_SECONDS):
-            self.authenticate()
+            # If best key changed or token expired, re-authenticate
+            if (key_idx != self._active_key_idx
+                    or not self.access_token
+                    or time.time() >= self.token_expires_at - self.TOKEN_REFRESH_BUFFER_SECONDS):
+                self.authenticate()
     
     def _make_request(self, endpoint: str, params: Optional[Dict] = None, use_cache: bool = True) -> Optional[Dict]:
         """
@@ -338,6 +342,7 @@ class API42Client:
         Get projects for multiple users and return as a map
         
         This uses bulk fetching and organizes data by user ID for easy lookup.
+        Uses concurrent requests for faster fetching.
         
         Args:
             user_ids: List of user IDs
@@ -364,14 +369,24 @@ class API42Client:
             else:
                 users_needing_fetch.append(user_id)
         
-        # Fetch projects for users not in cache
+        # Fetch projects for users not in cache using concurrent requests
         if users_needing_fetch:
             print(f"  Fetching from API for {len(users_needing_fetch)} users (others from cache)...")
-            for i, user_id in enumerate(users_needing_fetch, 1):
-                if i % 50 == 0:
-                    print(f"    Progress: {i}/{len(users_needing_fetch)}")
-                projects = self.get_user_projects(user_id)
-                projects_by_user[user_id] = projects
+            completed = 0
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                futures = {
+                    executor.submit(self.get_user_projects, uid): uid
+                    for uid in users_needing_fetch
+                }
+                for future in as_completed(futures):
+                    uid = futures[future]
+                    try:
+                        projects_by_user[uid] = future.result()
+                    except Exception as e:
+                        print(f"    ⚠ Error fetching projects for user {uid}: {e}")
+                    completed += 1
+                    if completed % 50 == 0:
+                        print(f"    Progress: {completed}/{len(users_needing_fetch)}")
         else:
             print("  All data from cache!")
         
@@ -380,6 +395,8 @@ class API42Client:
     def get_locations_by_user_map(self, user_ids: List[int], begin_at: Optional[str] = None, end_at: Optional[str] = None) -> Dict[int, List[Dict]]:
         """
         Get locations for multiple users and return as a map
+        
+        Uses concurrent requests for faster fetching.
         
         Args:
             user_ids: List of user IDs
@@ -420,14 +437,24 @@ class API42Client:
             else:
                 users_needing_fetch.append(user_id)
         
-        # Fetch locations for users not in cache
+        # Fetch locations for users not in cache using concurrent requests
         if users_needing_fetch:
             print(f"  Fetching from API for {len(users_needing_fetch)} users (others from cache)...")
-            for i, user_id in enumerate(users_needing_fetch, 1):
-                if i % 50 == 0:
-                    print(f"    Progress: {i}/{len(users_needing_fetch)}")
-                locations = self.get_user_locations(user_id, begin_at, end_at)
-                locations_by_user[user_id] = locations
+            completed = 0
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                futures = {
+                    executor.submit(self.get_user_locations, uid, begin_at, end_at): uid
+                    for uid in users_needing_fetch
+                }
+                for future in as_completed(futures):
+                    uid = futures[future]
+                    try:
+                        locations_by_user[uid] = future.result()
+                    except Exception as e:
+                        print(f"    ⚠ Error fetching locations for user {uid}: {e}")
+                    completed += 1
+                    if completed % 50 == 0:
+                        print(f"    Progress: {completed}/{len(users_needing_fetch)}")
         else:
             print("  All data from cache!")
         
@@ -474,6 +501,48 @@ class API42Client:
     def get_key_usage_stats(self) -> List[Dict]:
         """Get usage statistics for all API keys"""
         return self.key_manager.get_all_usage_stats()
+
+    def get_data_freshness(self, campus_id: int = None, cursus_id: int = 21, begin_year: int = None) -> Dict[str, Optional[str]]:
+        """
+        Get the last-fetch timestamp for each data category.
+
+        Args:
+            campus_id: Campus ID used in the current session
+            cursus_id: Cursus ID
+            begin_year: Promo year filter
+
+        Returns:
+            Dictionary mapping data category name to ISO timestamp (or None)
+        """
+        freshness = {}
+
+        if not self.cache:
+            return freshness
+
+        # Campuses
+        freshness['Campuses'] = self.cache.get_cache_timestamp(
+            "/v2/campus", {'paginated': 'all'}
+        )
+
+        # Campus users
+        if campus_id:
+            params = {
+                "filter[campus_id]": campus_id,
+                "filter[cursus_id]": cursus_id,
+                'paginated': 'all',
+            }
+            if begin_year:
+                params["range[begin_at]"] = f"{begin_year}-01-01T00:00:00.000Z,{begin_year}-12-31T23:59:59.999Z"
+            freshness['Campus Users'] = self.cache.get_cache_timestamp(
+                "/v2/cursus_users", params
+            )
+
+        # Cursus projects
+        freshness['Cursus Projects'] = self.cache.get_cache_timestamp(
+            f"/v2/cursus/{cursus_id}/projects", {'paginated': 'all'}
+        )
+
+        return freshness
 
     # --- Refresh methods ---
 

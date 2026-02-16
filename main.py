@@ -67,6 +67,106 @@ def load_config():
     return keys
 
 
+def _format_timestamp(ts: str) -> str:
+    """Format an ISO timestamp into a human-readable string with age."""
+    try:
+        dt = datetime.fromisoformat(ts)
+        age = datetime.now() - dt
+        hours = age.total_seconds() / 3600
+        if hours < 1:
+            age_str = f"{int(age.total_seconds() / 60)}m ago"
+        elif hours < 24:
+            age_str = f"{hours:.1f}h ago"
+        else:
+            age_str = f"{hours / 24:.1f}d ago"
+        return f"{dt.strftime('%Y-%m-%d %H:%M:%S')} ({age_str})"
+    except (ValueError, TypeError):
+        return str(ts)
+
+
+def prompt_data_refresh(client: API42Client, campus_id: int = None, cursus_id: int = 21, begin_year: int = None) -> List[str]:
+    """
+    Display last-fetch timestamps for each data category and let the user
+    choose which data to refresh before running the analysis.
+
+    Args:
+        client: API client instance
+        campus_id: Currently selected campus ID (if any)
+        cursus_id: Cursus ID
+        begin_year: Promo year filter
+
+    Returns:
+        List of data category names that were refreshed
+    """
+    freshness = client.get_data_freshness(campus_id, cursus_id, begin_year)
+
+    if not freshness:
+        print("  (No cached data found — all data will be fetched fresh)")
+        return []
+
+    print("\n" + "=" * 60)
+    print("CACHED DATA STATUS")
+    print("=" * 60)
+
+    categories = list(freshness.keys())
+    for i, cat in enumerate(categories, 1):
+        ts = freshness[cat]
+        if ts:
+            print(f"  {i}. {cat:<20s} Last fetched: {_format_timestamp(ts)}")
+        else:
+            print(f"  {i}. {cat:<20s} Not cached (will be fetched fresh)")
+
+    print("-" * 60)
+    print("  Options:")
+    print("    Enter numbers to refresh (e.g. '1,3' or '1 3')")
+    print("    'all'  — refresh everything")
+    print("    'none' — keep all cached data (press Enter)")
+    print("-" * 60)
+
+    try:
+        selection = input("\nRefresh choice: ").strip().lower()
+    except (KeyboardInterrupt, EOFError):
+        print("\nKeeping cached data.")
+        return []
+
+    if not selection or selection == 'none':
+        print("✓ Keeping all cached data")
+        return []
+
+    if selection == 'all':
+        client.refresh_all()
+        return list(categories)
+
+    # Parse individual selections
+    refreshed = []
+    # Support comma-separated, space-separated, or mixed
+    tokens = selection.replace(',', ' ').split()
+    for token in tokens:
+        try:
+            idx = int(token)
+            if 1 <= idx <= len(categories):
+                cat = categories[idx - 1]
+                print(f"  Refreshing {cat}...")
+                if cat == 'Campuses':
+                    client.refresh_campuses()
+                elif cat == 'Campus Users':
+                    if campus_id:
+                        client.refresh_campus_users(campus_id, cursus_id, begin_year)
+                elif cat == 'Cursus Projects':
+                    client.refresh_cursus_projects(cursus_id)
+                refreshed.append(cat)
+            else:
+                print(f"  ⚠ Invalid number: {token}")
+        except ValueError:
+            print(f"  ⚠ Invalid input: {token}")
+
+    if refreshed:
+        print(f"✓ Refreshed: {', '.join(refreshed)}")
+    else:
+        print("✓ No data refreshed")
+    return refreshed
+
+
 def select_campus(client: API42Client) -> tuple:
     """
     Let user select a campus from the available list
@@ -603,6 +703,9 @@ def main():
         
         # Let user select campus
         selected_campus_id, selected_campus_name = select_campus(client)
+        
+        # Prompt user to review cached data freshness and optionally refresh
+        prompt_data_refresh(client, selected_campus_id, MAIN_CURSUS_ID, PROMO_YEAR)
         
         # PROJECT-BASED USER FETCHING
         print("\n" + "=" * 60)

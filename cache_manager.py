@@ -144,6 +144,30 @@ class CacheManager:
         except IOError:
             pass
     
+    def get_cache_timestamp(self, endpoint: str, params: Optional[Dict] = None) -> Optional[str]:
+        """
+        Get the timestamp of when data was cached for an endpoint.
+
+        Args:
+            endpoint: API endpoint
+            params: Query parameters
+
+        Returns:
+            ISO format timestamp string if cached, None otherwise
+        """
+        cache_key = self._get_cache_key(endpoint, params)
+        cache_path = self._get_cache_path(cache_key)
+
+        if not cache_path.exists():
+            return None
+
+        try:
+            with open(cache_path, 'r') as f:
+                cache_data = json.load(f)
+                return cache_data.get('timestamp')
+        except (json.JSONDecodeError, IOError):
+            return None
+
     def get_cache_stats(self) -> Dict[str, Any]:
         """
         Get statistics about the cache
