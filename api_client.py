@@ -98,8 +98,14 @@ class API42Client:
             print(f"✗ Authentication failed: {e}")
             return False
     
-    def _ensure_authenticated(self):
-        """Ensure we have a valid access token, rotating keys as needed"""
+    def _ensure_authenticated(self) -> Tuple[str, int]:
+        """Ensure we have a valid access token, rotating keys as needed.
+
+        Returns:
+            Tuple of (access_token, key_index) captured under the lock so
+            callers get a consistent snapshot even when other threads rotate
+            keys concurrently.
+        """
         with self._auth_lock:
             key_idx, _, _ = self.key_manager.select_key()
 
@@ -108,6 +114,9 @@ class API42Client:
                     or not self.access_token
                     or time.time() >= self.token_expires_at - self.TOKEN_REFRESH_BUFFER_SECONDS):
                 self.authenticate()
+
+            # Return a snapshot so the caller uses a consistent pair
+            return self.access_token, self._active_key_idx
     
     def _make_request(self, endpoint: str, params: Optional[Dict] = None, use_cache: bool = True) -> Optional[Dict]:
         """
@@ -127,18 +136,21 @@ class API42Client:
             if cached_data is not None:
                 return cached_data
         
-        self._ensure_authenticated()
+        # Get a thread-safe snapshot of the token and key index
+        access_token, key_idx = self._ensure_authenticated()
         
         url = f"{self.BASE_URL}{endpoint}"
-        headers = {"Authorization": f"Bearer {self.access_token}"}
+        headers = {"Authorization": f"Bearer {access_token}"}
         
         try:
             response = requests.get(url, headers=headers, params=params)
-            # Record the request against the active key
-            if self._active_key_idx is not None:
-                self.key_manager.record_request(self._active_key_idx)
             response.raise_for_status()
             data = response.json()
+            
+            # Record the request only after a successful response,
+            # using the key index captured before the request was made
+            if key_idx is not None:
+                self.key_manager.record_request(key_idx)
             
             # Cache the response
             if use_cache and self.cache:

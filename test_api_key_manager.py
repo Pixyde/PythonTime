@@ -6,6 +6,8 @@ import os
 import json
 import time
 import shutil
+import requests
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 from api_key_manager import ApiKeyManager
 from api_client import API42Client
@@ -250,6 +252,147 @@ def test_load_config_multi_key():
         print("  ✓ Loaded single key pair via fallback")
 
 
+def test_ensure_authenticated_returns_snapshot():
+    """Test that _ensure_authenticated returns a consistent token/key snapshot"""
+    print("\nTesting _ensure_authenticated returns snapshot...")
+
+    client = API42Client(keys=[("id1", "s1"), ("id2", "s2")], use_cache=False)
+    # Isolate usage state
+    client.key_manager.usage_file = Path("/tmp/test_snapshot.json")
+    client.key_manager.usage = {}
+
+    # Pre-set authentication state so _ensure_authenticated won't call real API
+    client.access_token = "token_for_key0"
+    client._active_key_idx = 0
+    client.token_expires_at = time.time() + 7200
+    client.key_manager.tokens[0] = {
+        'access_token': 'token_for_key0',
+        'expires_at': client.token_expires_at,
+    }
+
+    token, key_idx = client._ensure_authenticated()
+
+    assert token == "token_for_key0", f"Expected token_for_key0, got {token}"
+    assert key_idx == 0, f"Expected key 0, got {key_idx}"
+    print("  ✓ _ensure_authenticated returns (token, key_idx) tuple")
+
+    # Cleanup
+    if os.path.exists("/tmp/test_snapshot.json"):
+        os.remove("/tmp/test_snapshot.json")
+
+
+def test_request_recorded_after_success_only():
+    """Test that requests are only counted after a successful response"""
+    print("\nTesting request recorded only after success...")
+
+    client = API42Client(keys=[("id1", "s1")], use_cache=False)
+    # Use a separate usage file for this test
+    client.key_manager.usage_file = Path("/tmp/test_req_success.json")
+    client.key_manager.usage = {}
+
+    # Pre-set authentication state
+    client.access_token = "test_token"
+    client._active_key_idx = 0
+    client.token_expires_at = time.time() + 7200
+    client.key_manager.tokens[0] = {
+        'access_token': 'test_token',
+        'expires_at': client.token_expires_at,
+    }
+
+    # Mock a failed request (e.g. 429 rate limit)
+    mock_response = MagicMock()
+    mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("429 Too Many Requests")
+
+    with patch('requests.get', return_value=mock_response):
+        result = client._make_request("/v2/test", use_cache=False)
+
+    assert result is None, "Failed request should return None"
+    count = client.key_manager.get_request_count(0)
+    assert count == 0, f"Failed request should NOT be recorded, got count={count}"
+    print("  ✓ Failed request not recorded against key quota")
+
+    # Mock a successful request
+    mock_response_ok = MagicMock()
+    mock_response_ok.raise_for_status.return_value = None
+    mock_response_ok.json.return_value = {"data": "test"}
+
+    with patch('requests.get', return_value=mock_response_ok):
+        result = client._make_request("/v2/test2", use_cache=False)
+
+    assert result == {"data": "test"}, "Successful request should return data"
+    count = client.key_manager.get_request_count(0)
+    assert count == 1, f"Successful request should be recorded, got count={count}"
+    print("  ✓ Successful request recorded against key quota")
+
+    # Cleanup
+    if os.path.exists("/tmp/test_req_success.json"):
+        os.remove("/tmp/test_req_success.json")
+
+
+def test_concurrent_requests_use_correct_key():
+    """Test that concurrent requests record against the correct key"""
+    print("\nTesting concurrent requests use correct key...")
+
+    client = API42Client(keys=[("id1", "s1"), ("id2", "s2")], use_cache=False)
+    # Use a separate usage file for this test
+    client.key_manager.usage_file = Path("/tmp/test_concurrent_key.json")
+    client.key_manager.usage = {}
+
+    # Pre-set authentication state so _ensure_authenticated won't try real API
+    client.access_token = "test_token"
+    client._active_key_idx = 0
+    client.token_expires_at = time.time() + 7200
+    client.key_manager.tokens[0] = {
+        'access_token': 'test_token',
+        'expires_at': client.token_expires_at,
+    }
+
+    # Track which key each request was recorded against
+    recorded_keys = []
+    original_record = client.key_manager.record_request
+
+    def tracking_record(key_idx):
+        recorded_keys.append(key_idx)
+        original_record(key_idx)
+
+    client.key_manager.record_request = tracking_record
+
+    # Mock both requests.get (for API calls) and authenticate (to prevent
+    # real auth attempts when key rotation triggers re-authentication)
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.json.return_value = [{"id": 1}]
+
+    def fake_authenticate():
+        """Fake authenticate that just sets the token for the new key"""
+        client.key_manager.tokens[client._active_key_idx] = {
+            'access_token': f'token_key{client._active_key_idx}',
+            'expires_at': time.time() + 7200,
+        }
+        client.access_token = f'token_key{client._active_key_idx}'
+        client.token_expires_at = time.time() + 7200
+        return True
+
+    with patch('requests.get', return_value=mock_response), \
+         patch.object(client, 'authenticate', side_effect=fake_authenticate):
+        # Verify _ensure_authenticated returns a consistent snapshot
+        token, key_idx = client._ensure_authenticated()
+        assert token == "test_token"
+        assert key_idx == 0
+        print(f"  ✓ Got snapshot: key_idx={key_idx}")
+
+        # Make a few requests — they should all use key 0 (with 0 usage)
+        client._make_request("/v2/test1", use_cache=False)
+        client._make_request("/v2/test2", use_cache=False)
+
+    assert all(k == 0 for k in recorded_keys), f"All requests should use key 0, got {recorded_keys}"
+    print(f"  ✓ All {len(recorded_keys)} requests recorded against correct key")
+
+    # Cleanup
+    if os.path.exists("/tmp/test_concurrent_key.json"):
+        os.remove("/tmp/test_concurrent_key.json")
+
+
 def main():
     """Run all tests"""
     print("=" * 60)
@@ -268,6 +411,9 @@ def main():
         test_api_client_backward_compat,
         test_refresh_methods_invalidate_cache,
         test_load_config_multi_key,
+        test_ensure_authenticated_returns_snapshot,
+        test_request_recorded_after_success_only,
+        test_concurrent_requests_use_correct_key,
     ]
 
     failed = 0
