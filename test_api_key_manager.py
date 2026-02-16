@@ -9,6 +9,7 @@ import shutil
 import requests
 from pathlib import Path
 from unittest.mock import patch, MagicMock
+
 from api_key_manager import ApiKeyManager
 from api_client import API42Client
 
